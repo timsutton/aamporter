@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>products</key>
+    <array>
+/*
+name: The pkginfo name of a base product in Munki for which the updates apply
+channels: The AAM channel for a product that will be checked for updates
+          For a list of available channels:
+          http://forums.adobe.com/servlet/JiveServlet/downloadBody/2434-102-1-2484/AdobeApplicationManagerEnterpriseEdition_ChannelIds.pdf
+*/
+        <dict>
+            <key>name</key>
+            <string>AdobeProductionPremiumCS6</string>
+            <key>channels</key>
+            <array>
+                <string>AdobePremiereProCS6-6.0.0-Trial</string>
+                <string>AdobePreludeCS6-1.0.0-Trial</string>
+                <string>AdobeSpeedGradeCS6-6.0.0-Trial</string>
+                <string>AdobeFlashBuilder-mul-4.6</string>
+                <string>AdobeEncoreCS6-6.0.0-Trial</string>
+                <string>AdobeAuditionCS6-5.0</string>
+                <string>AdobeAfterEffectsCS6Presets-11</string>
+                <string>AdobeAfterEffectsCS6-11</string>
+                <string>AIRforIOSFlashBuilder3.1</string>
+                <string>AIRforAppleIOSWrapper3.1</string>
+                <string>AdobePhotoshopCS6-13.0</string>
+                <string>PhotoshopCameraRaw7-7.0</string>
+                <string>AdobeMediaEncoderCS6-6</string>
+                <string>AdobeIllustrator16-mul</string>
+                <string>FlashPro12.0</string>
+                <string>AdobeBridgeCS6-5.0</string>
+                <string>AIRForAppleIOSFlashPro12.0</string>
+            </array>
+        </dict>
+        <dict>
+            <key>name</key>
+            <string>AdobeDesignWebPremiumCS6</string>
+            <key>channels</key>
+            <array>
+                <string>AdobeFlashBuilder-mul-4.6</string>
+                <string>AIRforIOSFlashBuilder3.1</string>
+                <string>AIRforAppleIOSWrapper3.1</string>
+                <string>AdobePhotoshopCS6-13.0</string>
+                <string>PhotoshopCameraRaw7-7.0</string>
+                <string>AdobeMediaEncoderCS6-6</string>
+                <string>AdobeIllustrator16-mul</string>
+                <string>FlashPro12.0</string>
+                <string>AdobeBridgeCS6-5.0</string>
+                <string>AIRForAppleIOSFlashPro12.0</string>
+                <string>AdobeInDesignCS6-8.0</string>
+                <string>AdobeFireworksCS6-12.0.0-mul</string>
+                <string>AdobeExtensionManagerCS6-6.0</string>
+                <string>AdobeDreamweaverCS6-12</string>
+            </array>
+        </dict>
+        <dict>
+            <key>name</key>
+            <string>AdobeProductionPremiumCS5.5</string>
+            <key>channels</key>
+            <array>
+                <string>AdobeAfterEffectsCS5.5-10.5</string>
+                <string>AdobeAuditionCS5.5-4.0</string>
+                <string>AdobeBridgeCS5.1-4.1</string>
+                <string>AdobeDeviceCentralCS5.5-3.5</string>
+                <string>AdobeEncoreCS5.1-5.1.0-Retail</string>
+                <string>AdobeExtensionManagerCS5.5-5.5</string>
+                <string>FlashPro11.5</string>
+                <string>AdobeFlashBuilder-mul-4.5</string>
+                <string>AdobeIllustratorCS5.1-15.1</string>
+                <string>AdobeMediaEncoderCS5.5-5.5</string>
+                <string>AdobeOnLocationCS5.1-5.1</string>
+                <string>AdobePhotoshopCS5.1-12.1</string>
+                <string>PhotoshopCameraRaw-6.0</string>
+                <string>AdobePremiereProCS5-5.5.0-Retail</string>
+                <string>AdobePremiereProCS5.5FunctionalContent-5.5.0</string>
+            </array>
+        </dict>
+        <dict>
+            <key>name</key>
+            <string>AdobeDesignPremiumCS5</string>
+            <key>channels</key>
+            <array>
+                <string>AdobeBridgeCS5-4.0</string>
+                <string>AdobeDreamweaverCS5-11.0</string>
+                <string>AdobeExtensionManagerCS5-5.0</string>
+                <string>FlashPro11</string>
+                <string>AdobeIllustratorCS5-15.0</string>
+                <string>AdobeInDesignCS5-7.0</string>
+                <string>AdobeMediaEncoderCS5-5.0</string>
+                <string>AdobePhotoshopCS5-12.0</string>
+                <string>AdobeDeviceCentralCS5-3.0</string>
+                <string>AdobeFireworksCS5-11.0-mul</string>
+                <string>PhotoshopCameraRaw-6.0</string>
+            </array>
+        </dict>
+    </array>
+    <key>pkginfo_name_suffix</key>
+    <string>_Update</string>
+    <key>munkiimport_options</key>
+    /* commandline flags passed to munkiimport
+    - assume that --nointeractive, --displayname, --description, --update_for will be set automatically as appropriate
+    */
+    <array>
+        <string>--subdirectory</string>
+        <string>apps/Adobe/CS_Updates</string>
+        <string>--catalog</string>
+        <string>testing</string>
+    </array>
+</dict>
+</plist>
