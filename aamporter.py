@@ -187,7 +187,7 @@ def main():
                             if opts.munkiimport:
                                 need_to_import = True
                                 item_name = "%s%s" % (
-                                    update.channel, updates_manifest['pkginfo_name_suffix'])
+                                    update.product, updates_manifest['pkginfo_name_suffix'])
                                 # Do 'exists in repo' checks if we're not forcing imports
                                 if opts.force_import is False:
                                     pkginfo = munkiimport.makePkgInfo(['--name', item_name, output_filename], False)
