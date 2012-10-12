@@ -21,7 +21,6 @@ from collections import namedtuple
 from xml.etree import ElementTree as ET
 import optparse
 import subprocess
-import imp
 
 URL_FEED = 'http://swupmf.adobe.com/webfeed/oobe/aam20/mac/updaterfeed.xml'
 URL_DL_PREFIX = 'http://swupdl.adobe.com/updates/oobe/aam20/mac'
@@ -122,6 +121,7 @@ def main():
             errorExit("Your Munki repo seems to not be configured. Run munkiimport --configure first.")
 
         try:
+            import imp
             # munkiimport doesn't end in .py, so we use imp to make it available to the import system
             imp.load_source('munkiimport', os.path.join(MUNKI_DIR, 'munkiimport'))
             import munkiimport
