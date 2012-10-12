@@ -25,9 +25,11 @@ import subprocess
 URL_FEED = 'http://swupmf.adobe.com/webfeed/oobe/aam20/mac/updaterfeed.xml'
 URL_DL_PREFIX = 'http://swupdl.adobe.com/updates/oobe/aam20/mac'
 MUNKI_DIR = '/usr/local/munki'
+SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 DEFAULT_MUNKI_PKG_SUBDIR = 'apps/Adobe/CS_Updates'
+DEFAULT_LOCAL_CACHE_PATH = os.path.join(SCRIPT_DIR, 'aamcache')
 OFFLINE_DEBUG = False
-updates_plist = os.path.join(os.path.dirname(sys.argv[0]), 'aamporter.plist')
+updates_plist = os.path.join(SCRIPT_DIR, 'aamporter.plist')
 updates_manifest = plistlib.readPlist(updates_plist)
 
 UpdateMeta = namedtuple('update', ['channel', 'product', 'version', 'revoked'])
@@ -129,6 +131,28 @@ def main():
         except ImportError:
             errorExit("There was an error importing munkilib, which is needed for --munkiimport functionality.")
 
+    # set our output directory and perform sanity checks
+    if 'local_cache_path' not in updates_manifest.keys():
+        local_cache_path = DEFAULT_LOCAL_CACHE_PATH
+    else:
+        local_cache_path = updates_manifest['local_cache_path']
+
+    if os.path.exists(local_cache_path) and not os.path.isdir(local_cache_path):
+        errorExit("Local cache path %s was specified and exists, but it is not a directory!" %
+            local_cache_path)
+    elif not os.path.exists(local_cache_path):
+        try:
+            os.mkdir(local_cache_path)
+        except OSError:
+            errorExit("Local cache path %s could not be created. Verify permissions." %
+                local_cache_path)
+        except:
+            errorExit("Unknown error creating local cache path %s." % local_cache_path)
+    try:
+        os.access(local_cache_path, os.W_OK)
+    except:
+        errorExit("Cannot write to local cache path!" % local_cache_path)
+
     for product in updates_manifest['products']:
         print "Product %s" % product['name']
         for channel in product['channels']:
@@ -172,7 +196,8 @@ def main():
                         description = details_xml.find('Description/en_US').text
                         display_name = details_xml.find('DisplayName/en_US').text
                         dmg_url = URL_DL_PREFIX + '/%s/%s/%s' % (update.product, update.version, filename)
-                        output_filename = os.path.join(os.getcwd(), "%s-%s.dmg" % (update.product, update.version))
+                        output_filename = os.path.join(local_cache_path, "%s-%s.dmg" % (
+                            update.product, update.version))
                         need_to_dl = True
                         if os.path.exists(output_filename):
                             we_have_bytes = os.stat(output_filename).st_size
