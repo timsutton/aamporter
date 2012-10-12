@@ -184,49 +184,55 @@ def main():
                         if need_to_dl:
                             print "Downloading update at %s" % dmg_url
                             urllib.urlretrieve(dmg_url, output_filename)
-                            if opts.munkiimport:
+
+                        if opts.munkiimport:
+                            need_to_import = True
+                            item_name = "%s%s" % (
+                                update.product.replace('-', '_'),
+                                updates_manifest['pkginfo_name_suffix'])
+                            # Do 'exists in repo' checks if we're not forcing imports
+                            if opts.force_import is False:
+                                pkginfo = munkiimport.makePkgInfo(['--name', item_name, output_filename], False)
+                                # Cribbed from munkiimport
+                                print "Looking for a matching pkginfo via munkiimport.."
+                                matchingpkginfo = munkiimport.findMatchingPkginfo(pkginfo)
+                                if matchingpkginfo:
+                                    print "Got a matching pkginfo."
+                                    if ('installer_item_hash' in matchingpkginfo and
+                                        matchingpkginfo['installer_item_hash'] ==
+                                        pkginfo.get('installer_item_hash')):
+                                        need_to_import = False
+                                        print "We already have an exact match in the repo. Skipping import."
+                            else:
                                 need_to_import = True
-                                item_name = "%s%s" % (
-                                    update.product, updates_manifest['pkginfo_name_suffix'])
-                                # Do 'exists in repo' checks if we're not forcing imports
-                                if opts.force_import is False:
-                                    pkginfo = munkiimport.makePkgInfo(['--name', item_name, output_filename], False)
-                                    # Cribbed from munkiimport
-                                    matchingpkginfo = munkiimport.findMatchingPkginfo(pkginfo)
-                                    if matchingpkginfo:
-                                        if ('installer_item_hash' in matchingpkginfo and
-                                            matchingpkginfo['installer_item_hash'] ==
-                                            pkginfo.get('installer_item_hash')):
-                                            need_to_import = False
-                                            print "We already have an exact match in the repo. Skipping import."
 
-                                if need_to_import:
-                                    print "Importing into munki."
-                                    munkiimport_opts = updates_manifest['munkiimport_options'][:]
-                                    print "Base munkiimport opts: %s" % munkiimport_opts
-                                    if '--subdirectory' not in munkiimport_opts:
-                                        munkiimport_opts.append('--subdirectory')
-                                        munkiimport_opts.append(DEFAULT_MUNKI_PKG_SUBDIR)
-                                    base_products = getBaseProductsForChannel(
-                                        update.channel, updates_manifest)
-                                    print "Applicable base products for Munki: %s" % ', '.join(base_products)
-                                    for base_product in base_products:
-                                        munkiimport_opts.append('--update_for')
-                                        munkiimport_opts.append(base_product)
-                                    munkiimport_opts.append('--name')
-                                    munkiimport_opts.append(item_name)
-                                    munkiimport_opts.append('--displayname')
-                                    munkiimport_opts.append(display_name)
-                                    munkiimport_opts.append('--description')
-                                    munkiimport_opts.append(description)
+                            if need_to_import:
+                                print "Importing into munki."
+                                munkiimport_opts = updates_manifest['munkiimport_options'][:]
+                                print "Base munkiimport opts: %s" % munkiimport_opts
+                                if '--subdirectory' not in munkiimport_opts:
+                                    munkiimport_opts.append('--subdirectory')
+                                    munkiimport_opts.append(DEFAULT_MUNKI_PKG_SUBDIR)
+                                base_products = getBaseProductsForChannel(
+                                    update.channel, updates_manifest)
+                                print "Applicable base products for Munki: %s" % ', '.join(base_products)
+                                for base_product in base_products:
+                                    munkiimport_opts.append('--update_for')
+                                    munkiimport_opts.append(base_product)
+                                munkiimport_opts.append('--name')
+                                munkiimport_opts.append(item_name)
+                                munkiimport_opts.append('--displayname')
+                                munkiimport_opts.append(display_name)
+                                munkiimport_opts.append('--description')
+                                munkiimport_opts.append(description)
 
-                                    import_cmd = ['/usr/local/munki/munkiimport',
-                                    '--nointeractive']
-                                    import_cmd += munkiimport_opts
-                                    import_cmd.append(output_filename)
-                                    print "Calling munkiimport on %s version %s, file %s." % (
-                                        update.product, update.version, output_filename)
-                                    subprocess.call(import_cmd)
+                                import_cmd = ['/usr/local/munki/munkiimport',
+                                '--nointeractive']
+                                import_cmd += munkiimport_opts
+                                import_cmd.append(output_filename)
+                                print "Calling munkiimport on %s version %s, file %s." % (
+                                    update.product, update.version, output_filename)
+                                subprocess.call(import_cmd)
 
 if __name__ == '__main__':
     main()
