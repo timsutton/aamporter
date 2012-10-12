@@ -232,7 +232,18 @@ def main():
                                 import_cmd.append(output_filename)
                                 print "Calling munkiimport on %s version %s, file %s." % (
                                     update.product, update.version, output_filename)
-                                subprocess.call(import_cmd)
+                                import_retcode = subprocess.call(import_cmd)
+                                if import_retcode:
+                                    print "munkiimport returned an error. Skipping update.."
+                                    continue
+                                else:
+                                    # Rebuilding catalogs so that if the next update for import
+                                    # applies to a different channel, we won't import it again
+                                    # - ideally munkiimport should be done after _all_ downloads
+                                    #   are verified so that we wouldn't need to rebuild catalogs,
+                                    #   ie. we'd be able to check the state of each update in the
+                                    #   repo prior and only import once
+                                    munkiimport.makeCatalogs()
 
 if __name__ == '__main__':
     main()
