@@ -69,6 +69,21 @@ def parseFeedData(feed_list):
     return updates
 
 
+def getChannelsFromManifests(manifests):
+    """Takes a list of manifest plist objects and returns a dict of
+    channels and what each is an update_for."""
+    channels = {}
+    for manifest in manifests:
+        if 'products' in manifest.keys():
+            for product in manifest['products']:
+                for channel in product['channels']:
+                    if not channel in channels.keys():
+                        channels[channel] = {}
+                        channels[channel]['update_for'] = []
+                    channels[channel]['update_for'].append(product['name'])
+    return channels
+
+
 def getUpdatesForChannel(channel_id, parsed_feed):
     updates = []
     for update in parsed_feed:
@@ -115,6 +130,8 @@ def main():
         help="Include updates that have been marked as revoked in Adobe's feed XML.")
     o.add_option("-f", "--force-import", action="store_true", default=False,
         help="Run munkiimport even if it finds an identical pkginfo and installer_item_hash in the repo.")
+    o.add_option("-c", "--make-catalogs", action="store_true", default=False,
+        help="Automatically run makecatalogs after importing into Munki.")
 
     opts, args = o.parse_args()
 
@@ -157,122 +174,130 @@ def main():
     except:
         errorExit("Cannot write to local cache path!" % local_cache_path)
 
-    for product in updates_manifest['products']:
-        print "Product %s" % product['name']
-        for channel in product['channels']:
-            print "Channel %s" % channel
-            channel_updates = getUpdatesForChannel(channel, parsed)
-            if not channel_updates:
-                print "No updates for channel %s" % channel
+    channels = getChannelsFromManifests([updates_manifest])
+    updates = {}
+    for channelid in channels.keys():
+        print "Channel %s" % channelid
+        channel_updates = getUpdatesForChannel(channelid, parsed)
+        if not channel_updates:
+            print "No updates for channel %s" % channelid
+            continue
+
+        for update in channel_updates:
+            print "Update %s, %s..." % (update.product, update.version)
+
+            if opts.include_revoked is False and \
+            updateIsRevoked(update.channel, update.product, update.version, parsed):
+                print "Update is revoked. Skipping update."
                 continue
-            for update in channel_updates:
-                print "Update %s, %s..." % (update.product, update.version)
-                # if update.channel in product['channels']:
-                if update.channel not in product['channels']:
-                    continue
+            details_url = urljoin(aam_updates20_baseurl, UPDATE_PATH_PREFIX) + \
+                '/%s/%s/%s.xml' % (update.product, update.version, update.version)
+            try:
+                channel_xml = urllib.urlopen(details_url)
+            except:
+                print "Couldn't read details XML at %s" % details_url
+                break
 
-                if opts.include_revoked is False and \
-                updateIsRevoked(update.channel, update.product, update.version, parsed):
-                    print "Update is revoked. Skipping update."
-                    continue
-                details_url = urljoin(aam_updates20_baseurl, UPDATE_PATH_PREFIX) + \
-                    '/%s/%s/%s.xml' % (update.product, update.version, update.version)
-                try:
-                    channel_xml = urllib.urlopen(details_url)
-                except:
-                    print "Couldn't read details XML at %s" % details_url
-                    break
+            try:
+                details_xml = ET.fromstring(channel_xml.read())
+            except ET.ParseError:
+                print "Couldn't parse XML."
+                break
 
-                try:
-                    details_xml = ET.fromstring(channel_xml.read())
-                except:
-                    print "Couldn't parse XML."
-                    break
+            if details_xml is not None:
+                file_element = details_xml.find('InstallFiles/File')
+                if file_element is None:
+                    print "No File XML element found. Skipping update."
+                else:
+                    filename = file_element.find('Name').text
+                    bytes = file_element.find('Size').text
+                    description = details_xml.find('Description/en_US').text
+                    display_name = details_xml.find('DisplayName/en_US').text
 
-                if details_xml is not None:
-                    file_element = details_xml.find('InstallFiles/File')
-                    if file_element is None:
-                        print "No File XML element found. Skipping update."
-                    else:
-                        filename = file_element.find('Name').text
-                        bytes = file_element.find('Size').text
-                        description = details_xml.find('Description/en_US').text
-                        display_name = details_xml.find('DisplayName/en_US').text
-                        dmg_url = urljoin(aam_updates20_baseurl, UPDATE_PATH_PREFIX) + \
+                    if not update.product in updates.keys():
+                        updates[update.product] = {}
+                    if not update.version in updates[update.product].keys():
+                        updates[update.product][update.version] = {}
+                        updates[update.product][update.version]['channel_ids'] = []
+                        updates[update.product][update.version]['update_for'] = []
+                    updates[update.product][update.version]['channel_ids'].append(update.channel)
+                    updates[update.product][update.version]['update_for'] = channels[update.channel]['update_for']
+                    updates[update.product][update.version]['description'] = description
+                    updates[update.product][update.version]['display_name'] = display_name
+                    dmg_url = urljoin(aam_updates20_baseurl, UPDATE_PATH_PREFIX) + \
                             '/%s/%s/%s' % (update.product, update.version, filename)
-                        output_filename = os.path.join(local_cache_path, "%s-%s.dmg" % (
+                    output_filename = os.path.join(local_cache_path, "%s-%s.dmg" % (
                             update.product, update.version))
-                        need_to_dl = True
-                        if os.path.exists(output_filename):
-                            we_have_bytes = os.stat(output_filename).st_size
-                            if we_have_bytes == int(bytes):
-                                print "Skipping download of %s, we already have it." % update.product
-                                need_to_dl = False
-                            else:
-                                print "Incomplete download, re-starting."
-                        if need_to_dl:
-                            print "Downloading update at %s" % dmg_url
-                            urllib.urlretrieve(dmg_url, output_filename)
+                    updates[update.product][update.version]['local_path'] = output_filename
+                    need_to_dl = True
+                    if os.path.exists(output_filename):
+                        we_have_bytes = os.stat(output_filename).st_size
+                        if we_have_bytes == int(bytes):
+                            print "Skipping download of %s, we already have it." % update.product
+                            need_to_dl = False
+                        else:
+                            print "Incomplete download, re-starting."
+                    if need_to_dl:
+                        print "Downloading update at %s" % dmg_url
+                        urllib.urlretrieve(dmg_url, output_filename)
+    print "Done caching updates."
 
-                        if opts.munkiimport:
-                            need_to_import = True
-                            item_name = "%s%s" % (
-                                update.product.replace('-', '_'),
-                                updates_manifest['pkginfo_name_suffix'])
-                            # Do 'exists in repo' checks if we're not forcing imports
-                            if opts.force_import is False:
-                                pkginfo = munkiimport.makePkgInfo(['--name', item_name, output_filename], False)
-                                # Cribbed from munkiimport
-                                print "Looking for a matching pkginfo via munkiimport.."
-                                matchingpkginfo = munkiimport.findMatchingPkginfo(pkginfo)
-                                if matchingpkginfo:
-                                    print "Got a matching pkginfo."
-                                    if ('installer_item_hash' in matchingpkginfo and
-                                        matchingpkginfo['installer_item_hash'] ==
-                                        pkginfo.get('installer_item_hash')):
-                                        need_to_import = False
-                                        print "We already have an exact match in the repo. Skipping import."
-                            else:
-                                need_to_import = True
+    if opts.munkiimport:
+        for (update_name, update_meta) in updates.items():
+            for (version_name, version_meta) in update_meta.items():
+                need_to_import = True
+                item_name = "%s%s" % (update_name.replace('-', '_'),
+                    updates_manifest['pkginfo_name_suffix'])
+                # Do 'exists in repo' checks if we're not forcing imports
+                if opts.force_import is False:
+                    pkginfo = munkiimport.makePkgInfo(['--name',
+                                            item_name,
+                                            version_meta['local_path']],
+                                            False)
+                    # Cribbed from munkiimport
+                    print "Looking for a matching pkginfo via munkiimport.."
+                    matchingpkginfo = munkiimport.findMatchingPkginfo(pkginfo)
+                    if matchingpkginfo:
+                        print "Got a matching pkginfo."
+                        if ('installer_item_hash' in matchingpkginfo and
+                            matchingpkginfo['installer_item_hash'] ==
+                            pkginfo.get('installer_item_hash')):
+                            need_to_import = False
+                            print "We already have an exact match in the repo. Skipping import."
+                    else:
+                        need_to_import = True
 
-                            if need_to_import:
-                                print "Importing into munki."
-                                munkiimport_opts = updates_manifest['munkiimport_options'][:]
-                                print "Base munkiimport opts: %s" % munkiimport_opts
-                                if '--subdirectory' not in munkiimport_opts:
-                                    munkiimport_opts.append('--subdirectory')
-                                    munkiimport_opts.append(DEFAULT_MUNKI_PKG_SUBDIR)
-                                base_products = getBaseProductsForChannel(
-                                    update.channel, updates_manifest)
-                                print "Applicable base products for Munki: %s" % ', '.join(base_products)
-                                for base_product in base_products:
-                                    munkiimport_opts.append('--update_for')
-                                    munkiimport_opts.append(base_product)
-                                munkiimport_opts.append('--name')
-                                munkiimport_opts.append(item_name)
-                                munkiimport_opts.append('--displayname')
-                                munkiimport_opts.append(display_name)
-                                munkiimport_opts.append('--description')
-                                munkiimport_opts.append(description)
+                if need_to_import:
+                    print "Importing %s into munki." % item_name
+                    munkiimport_opts = updates_manifest['munkiimport_options'][:]
+                    if '--subdirectory' not in munkiimport_opts:
+                        munkiimport_opts.append('--subdirectory')
+                        munkiimport_opts.append(DEFAULT_MUNKI_PKG_SUBDIR)
+                    base_products = version_meta['update_for']
+                    print "Applicable base products for Munki: %s" % ', '.join(base_products)
+                    for base_product in base_products:
+                        munkiimport_opts.append('--update_for')
+                        munkiimport_opts.append(base_product)
+                    munkiimport_opts.append('--name')
+                    munkiimport_opts.append(item_name)
+                    munkiimport_opts.append('--displayname')
+                    munkiimport_opts.append(version_meta['display_name'])
+                    munkiimport_opts.append('--description')
+                    munkiimport_opts.append(version_meta['description'])
 
-                                import_cmd = ['/usr/local/munki/munkiimport',
-                                '--nointeractive']
-                                import_cmd += munkiimport_opts
-                                import_cmd.append(output_filename)
-                                print "Calling munkiimport on %s version %s, file %s." % (
-                                    update.product, update.version, output_filename)
-                                import_retcode = subprocess.call(import_cmd)
-                                if import_retcode:
-                                    print "munkiimport returned an error. Skipping update.."
-                                    continue
-                                else:
-                                    # Rebuilding catalogs so that if the next update for import
-                                    # applies to a different channel, we won't import it again
-                                    # - ideally munkiimport should be done after _all_ downloads
-                                    #   are verified so that we wouldn't need to rebuild catalogs,
-                                    #   ie. we'd be able to check the state of each update in the
-                                    #   repo prior and only import once
-                                    munkiimport.makeCatalogs()
+                    import_cmd = ['/usr/local/munki/munkiimport', '--nointeractive']
+                    import_cmd += munkiimport_opts
+                    import_cmd.append(version_meta['local_path'])
+                    print "Calling munkiimport on %s version %s, file %s." % (
+                        update_name, version_name, version_meta['local_path'])
+                    import_retcode = subprocess.call(import_cmd)
+                    if import_retcode:
+                        print "munkiimport returned an error. Skipping update.."
+
+        print "Done importing into Munki."
+        if opts.make_catalogs:
+            print "Rebuilding catalogs..."
+            munkiimport.makeCatalogs()
 
 if __name__ == '__main__':
     main()
