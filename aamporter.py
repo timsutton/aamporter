@@ -29,7 +29,6 @@ MUNKI_DIR = '/usr/local/munki'
 SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 DEFAULT_MUNKI_PKG_SUBDIR = 'apps/Adobe/CS_Updates'
 DEFAULT_LOCAL_CACHE_PATH = os.path.join(SCRIPT_DIR, 'aamcache')
-OFFLINE_DEBUG = False
 updates_plist = os.path.join(SCRIPT_DIR, 'aamporter.plist')
 updates_manifest = plistlib.readPlist(updates_plist)
 
@@ -44,14 +43,10 @@ else:
     aam_updates20_baseurl = 'http://swupdl.adobe.com'
 
 
-def getFeedData(test=False):
-    if test:
-        with open(os.path.join(os.getcwd(), 'feed.xml')) as fd:
-            xml = fd.read()
-    else:
-        opener = urllib.urlopen(urljoin(aam_webfeed20_baseurl, FEED_PATH))
-        xml = opener.read()
-        opener.close()
+def getFeedData():
+    opener = urllib.urlopen(urljoin(aam_webfeed20_baseurl, FEED_PATH))
+    xml = opener.read()
+    opener.close()
     search = re.compile("<(.+)>")
     results = re.findall(search, xml)
     return results
@@ -110,7 +105,7 @@ def errorExit(err_string, err_code=1):
 
 
 def main():
-    feed = getFeedData(test=OFFLINE_DEBUG)
+    feed = getFeedData()
     parsed = parseFeedData(feed)
 
     o = optparse.OptionParser()
@@ -179,8 +174,6 @@ def main():
                 if opts.include_revoked is False and \
                 updateIsRevoked(update.channel, update.product, update.version, parsed):
                     print "Update is revoked. Skipping update."
-                    continue
-                if OFFLINE_DEBUG:
                     continue
                 details_url = urljoin(aam_updates20_baseurl, UPDATE_PATH_PREFIX) + \
                     '/%s/%s/%s.xml' % (update.product, update.version, update.version)
