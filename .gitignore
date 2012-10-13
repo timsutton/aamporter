@@ -1,2 +1,3 @@
 *.dmg
 *.pdf
+.DS_Store
