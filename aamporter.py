@@ -15,6 +15,7 @@
 import os
 import sys
 import urllib
+from urlparse import urljoin
 import plistlib
 import re
 from collections import namedtuple
@@ -22,8 +23,8 @@ from xml.etree import ElementTree as ET
 import optparse
 import subprocess
 
-URL_FEED = 'http://swupmf.adobe.com/webfeed/oobe/aam20/mac/updaterfeed.xml'
-URL_DL_PREFIX = 'http://swupdl.adobe.com/updates/oobe/aam20/mac'
+FEED_PATH = 'webfeed/oobe/aam20/mac/updaterfeed.xml'
+UPDATE_PATH_PREFIX = 'updates/oobe/aam20/mac'
 MUNKI_DIR = '/usr/local/munki'
 SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 DEFAULT_MUNKI_PKG_SUBDIR = 'apps/Adobe/CS_Updates'
@@ -34,13 +35,21 @@ updates_manifest = plistlib.readPlist(updates_plist)
 
 UpdateMeta = namedtuple('update', ['channel', 'product', 'version', 'revoked'])
 
+# check our aam server if defined
+if 'aam_server_baseurl' in updates_manifest.keys():
+    aam_webfeed20_baseurl = updates_manifest['aam_server_baseurl']
+    aam_updates20_baseurl = updates_manifest['aam_server_baseurl']
+else:
+    aam_webfeed20_baseurl = 'http://swupmf.adobe.com'
+    aam_updates20_baseurl = 'http://swupdl.adobe.com'
+
 
 def getFeedData(test=False):
     if test:
         with open(os.path.join(os.getcwd(), 'feed.xml')) as fd:
             xml = fd.read()
     else:
-        opener = urllib.urlopen(URL_FEED)
+        opener = urllib.urlopen(urljoin(aam_webfeed20_baseurl, FEED_PATH))
         xml = opener.read()
         opener.close()
     search = re.compile("<(.+)>")
@@ -173,7 +182,8 @@ def main():
                     continue
                 if OFFLINE_DEBUG:
                     continue
-                details_url = URL_DL_PREFIX + '/%s/%s/%s.xml' % (update.product, update.version, update.version)
+                details_url = urljoin(aam_updates20_baseurl, UPDATE_PATH_PREFIX) + \
+                    '/%s/%s/%s.xml' % (update.product, update.version, update.version)
                 try:
                     channel_xml = urllib.urlopen(details_url)
                 except:
@@ -195,7 +205,8 @@ def main():
                         bytes = file_element.find('Size').text
                         description = details_xml.find('Description/en_US').text
                         display_name = details_xml.find('DisplayName/en_US').text
-                        dmg_url = URL_DL_PREFIX + '/%s/%s/%s' % (update.product, update.version, filename)
+                        dmg_url = urljoin(aam_updates20_baseurl, UPDATE_PATH_PREFIX) + \
+                            '/%s/%s/%s' % (update.product, update.version, filename)
                         output_filename = os.path.join(local_cache_path, "%s-%s.dmg" % (
                             update.product, update.version))
                         need_to_dl = True
