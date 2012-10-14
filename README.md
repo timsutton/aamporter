@@ -1,16 +1,64 @@
 # aamporter
 
+## Overview
+
+aamporter is a command-line utility to retrieve the updates applicable to a product or suite, as defined in a plist file. It also automates the process of importing these into a [Munki](http://code.google.com/p/munki) repo.
+
+If you're about to begin importing a new CS suite into Munki, this tool should get your import and pkginfo configuration step for all your updates about 80% of the way automatically. Later, the tool can be re-run to pull in new updates as they are released, for testing.
+
 ## Usage
 
-Define a set of products and Adobe Channel IDs as shown in the example `aamporter.plist` file. This file is used as a manifest of what products to search for applicable updates.
+Define a set of products and Adobe Channel IDs as shown in the example `aamporter.plist` file. This file is used as a manifest of what products to search for applicable updates. It also tells aamporter the name of your base products in Munki, so if for example you manage installation of multiple suites with overlapping products, the pkginfos that are built will automatically have the appropriate items in the `update_for` array.
 
-Invoking it with no arguments will simply download the updates to the current directory.
+Invoking it with no arguments will simply download the updates. See the `local_cache_path` configuration option to override the default location these are stored.
 
-Passing the `--munkiimport` option will run `munkiimport --nointeractive` on each downloaded update, automatically setting appropriate `name`, `display_name`, `description`, `update_for` keys, and additional options that can be specified in `aamporter.plist`.
+See the [CS Enterprise Deployment documentation area](http://forums.adobe.com/community/download_install_setup/creative_suite_enterprise_deployment?view=documents) for more documentation, particularly the [tech note on Channel IDs](http://forums.adobe.com/servlet/JiveServlet/downloadBody/2434-102-1-2484/AdobeApplicationManagerEnterpriseEdition_ChannelIds.pdf) and the actual product these map to.
+
+### Importing into Munki
+
+Passing the `--munkiimport` option will effectively run `munkiimport --nointeractive` on each downloaded update, automatically setting appropriate `name`, `display_name`, `description`, `update_for` keys, and additional options that can be specified in `aamporter.plist`.
+
+aamporter calls upon functionality in munkiimport that will detect whether you already have an item in your repo. The default behaviour of aamporter will skip the duplicate import, but this can be overridden with the `--force-import` option.
+
+Once a run is complete and new items have been imported, catalogs will not be rebuilt by default. The `--make-catalogs` option, when set, will trigger makecatalogs at the end of the run.
 
 ### Revoked updates
 
-Unlike Apple, Adobe retains its old updates in its feed, marking them as revoked. By default, aamporter will not fetch these, but this can be overrided with the `--include-revoked` option.
+Unlike Apple, Adobe retains its old updates in its feed, marking them as revoked. By default, aamporter will not fetch and import these, but this can be overrided with the `--include-revoked` option. CS updates are almost always cumulative patches, and CS apps are not easily reverted to previous versions (instead requiring a full uninstall/reinstall), but there may particular scenarios for some environments where it's useful to have the earlier versions of updates available.
+
+## AAM nomenclature
+
+Adobe's updates go by "Channel ID", a list of which are provided to in the PDF linked to above. Each channel may have multiple updates available to it, and every product that can be purchased from Adobe, whether a suite or a single product, is comprised of many Channel IDs. Typically only several of these will ever actually have updates available.
+
+## Caveats
+
+### Manifests are your responsibility
+
+The example product/channel ID mappings provided aren't a definitive list. You should decide which updates you want to deploy, and test them thoroughly. You may well decide you only care about the main application updates and so can keep a relatively small manifest of updates for a given product.
+
+There is usually at least one update with every major version of the CS suite that has major issues, for example hanging in non-GUI installation contexts (Flash Pro 12.0.2 [triggering an Extension Manager installer](http://blogs.adobe.com/flashpro/2012/09/25/flash-professional-cs6-update2)), or improper cleanup following an install (Dreamweaver CS5 11.0.3 and Extension Manager [re-launch looping](http://blogs.adobe.com/csupdates/2010/08/31/dreamweaver-cs5-11-0-3-updater)). Nothing new here.
+
+### Undocumented order of installation
+
+There has been at least one case (Photoshop CS5 12.0.2 through 12.0.4, pointed out by Greg Neagle) where an application would only patch itself successfully if the updates were applied in the order they were actually released. I've not discovered anything in the webfeed XML that documents when an update was released, so again, test thoroughly.
+
+### Conflicts with updates already in your repo
+
+The munkiimport functionality will create pkginfos named according to the internal update name, substituting the hyphen with an underscore (so Munki doesn't interpret as the pkginfo version) and with a custom suffix added (see `pkginfo_name_suffix` below). For example: `AdobePhotoshopCS6Support_13.0_Update`.
+
+If you already have several updates for a product in your repo and they (likely) don't use this naming convention, you'll have duplicate pkginfos for the same product. You may want to first clear existing updates from your repo or only test aamporter with a product you are just beginning to configure in Munki and for which you don't already have updates available in production.
+
+### Manually-generated installs keys may still be needed for Munki
+
+I've found that most CS suite applications will keep a proper installed state using the installs item that's automatically generated by makepkginfo/munkiimport. This may not always be the case for _every_ application in the suite. You may want to use your own installs keys for the base application and each update, rather than letting Munki track these by the `/Library/Application Support/Adobe/Uninstall/{guid}.db` files used by default.
+
+See the [Adobe CS area](http://code.google.com/p/munki/wiki/MunkiAndAdobeCS5Updates) of the Munki wiki for more details on Adobe CS5/5.5/6 pkginfos.
+
+### CS apps still a pain
+
+In summary, this utility doesn't resolve any issues with patching Adobe installers. It is simply useful for removing much of the tedium in tracking/downloading updates from project team blog posts, RSS feeds, and Adobe's update websites, and the time required to manually import each one into Munki and apply small tweaks. Given the caveats above, work is still required, but aamporter should get you about 80% of the way there in the configuration/import phase.
+
+If you were previously using AAMEE to fetch and package updates, while this tool won't handle packaging for you, it can fetch updates for CS5, CS5.5 and CS6. AAMEE currently won't retrieve updates for both CS5/5.5 and CS6 without installing both 2.x and 3.x (which is not supported: see [Remove AAMEE](http://wwwimages.adobe.com/www.adobe.com/content/dam/Adobe/en/devnet/creativesuite/pdfs/Remove_AAMEE.pdf)).
 
 ## aamporter.plist options
 
@@ -26,8 +74,15 @@ A suffix to be added to the pkginfo names (the 'name' key, not the filename) for
 
 A series of supplemental options for munkiimport. For example, an alternate catalog name could be specified here, minimum/maximum os versions, etc.
 
+**aam_server_baseurl**
+
+The base URL for a local AUSST server, if you have one already configured and would like to pull your updates from that as opposed to Adobe's servers. Adobe's documentation on using the 'override' file would have you configure multiple server entries for both the 'webfeed' and 'update' functions and for both version 1.0 and 2.0 of AUSST. `aam_server_baseurl` is only a single value to configure, as it assumes nobody with an AUSST configuration is actually using two separate hosts to separate the feed and payload files.
+
 ## Current issues:
-* missing a number of helpful options
-* code is messy
+
+* currently all manifest info is provided in the `aamporter.plist` file; very soon this will change to keeping only configuration options in this file and each 'manifest' for a product will be in its own file, which is specified as an option to aamporter
 * console output is messy
-* there are likely still many bugs (luckily `munkiimport` is very safe with manipulating a Munki repo)
+
+## Thanks
+
+Greg Neagle gave a lot of constructive and insightful feedback since this was first posted, and his testing has greatly helped shape the functionality of aamporter.
