@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>channels</key>
+	<array>
+		<string>AdobeAfterEffectsCS6-11</string>
+		<string>AdobeAuditionCS6-5.0</string>
+		<string>AdobeBridgeCS6-5.0</string>
+		<string>PhotoshopCameraRaw7-7.0</string>
+		<string>AdobeEncoreCS6-6.0.0-Trial</string>
+		<string>AdobeExtensionManagerCS6-6.0</string>
+		<string>FlashPro12.0</string>
+		<string>AdobeIllustrator16-mul</string>
+		<string>AdobePhotoshopCS6-13.0</string>
+		<string>AdobePreludeCS6-1.0.0-Trial</string>
+		<string>AdobePremiereProCS6-6.0.0-Trial</string>
+		<string>AdobeSpeedGradeCS6-6.0.0-Trial</string>
+		<string>AdobeMediaEncoderCS6-6</string>
+	</array>
+	<key>munki_update_for</key>
+	<string>AdobeProductionPremiumCS6</string>
+	<key>munki_repo_destination_path</key>
+	<string>apps/Adobe/CS6/Updates</string>
+</dict>
+</plist>

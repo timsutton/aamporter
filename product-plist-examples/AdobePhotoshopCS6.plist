@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>channels</key>
+	<array>
+		<string>AdobeBridgeCS6-5.0</string>
+		<string>PhotoshopCameraRaw7-7.0</string>
+		<string>AdobePhotoshopCS6-13.0</string>
+	</array>
+	<key>munki_update_for</key>
+	<string>AdobePhotoshopCS6</string>
+</dict>
+</plist>

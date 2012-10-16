@@ -6,11 +6,7 @@
 # Utility to download AAM 2.0 and higher (read: CS5 and up) updates from Adobe's updater feed.
 # Optionally import them into a Munki repo, assuming munkiimport is already configured.
 #
-# Configure updates applicable to your managed products in aamporter.plist. What's included by default
-# may be used as examples, but are not a definitive, tested list.
-#
-# Adobe CS deployment documentation:
-# http://forums.adobe.com/community/download_install_setup/creative_suite_enterprise_deployment?view=documents
+# See README.md for more information.
 
 import os
 import sys
@@ -23,28 +19,52 @@ from xml.etree import ElementTree as ET
 import optparse
 import subprocess
 
-FEED_PATH = 'webfeed/oobe/aam20/mac/updaterfeed.xml'
+SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
+DEFAULT_PREFS = {
+    'munki_pkginfo_name_suffix': '_Update',
+    'munki_repo_destination_path': 'apps/Adobe/CS_Updates',
+    'munkiimport_options': [],
+    'local_cache_path': os.path.join(SCRIPT_DIR, 'aamcache')
+}
+settings_plist = os.path.join(SCRIPT_DIR, 'aamporter.plist')
+supported_settings_keys = ['munki_pkginfo_name_suffix',
+                            'munki_repo_destination_path',
+                            'munkiimport_options',
+                            'aam_server_baseurl']
+UpdateMeta = namedtuple('update', ['channel', 'product', 'version', 'revoked'])
 UPDATE_PATH_PREFIX = 'updates/oobe/aam20/mac'
 MUNKI_DIR = '/usr/local/munki'
-SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
-DEFAULT_MUNKI_PKG_SUBDIR = 'apps/Adobe/CS_Updates'
-DEFAULT_LOCAL_CACHE_PATH = os.path.join(SCRIPT_DIR, 'aamcache')
-updates_plist = os.path.join(SCRIPT_DIR, 'aamporter.plist')
-updates_manifest = plistlib.readPlist(updates_plist)
 
-UpdateMeta = namedtuple('update', ['channel', 'product', 'version', 'revoked'])
 
-# check our aam server if defined
-if 'aam_server_baseurl' in updates_manifest.keys():
-    aam_webfeed20_baseurl = updates_manifest['aam_server_baseurl']
-    aam_updates20_baseurl = updates_manifest['aam_server_baseurl']
-else:
-    aam_webfeed20_baseurl = 'http://swupmf.adobe.com'
-    aam_updates20_baseurl = 'http://swupdl.adobe.com'
+def errorExit(err_string, err_code=1):
+    print err_string
+    sys.exit(err_code)
+
+
+def pref(name):
+    if name in DEFAULT_PREFS.keys():
+        value = DEFAULT_PREFS[name]
+    if os.path.exists(settings_plist):
+        p = plistlib.readplist(settings_plist)
+        if name in p.keys():
+            value = p[name]
+    if not os.path.exists(settings_plist) and name not in DEFAULT_PREFS.keys():
+        value = None
+    return value
+
+
+def getURL(type='updates'):
+    if pref('aam_server_baseurl'):
+        return pref('aam_server_baseurl')
+    else:
+        if type == 'updates':
+            return 'http://swupdl.adobe.com'
+        elif type == 'webfeed':
+            return 'http://swupmf.adobe.com'
 
 
 def getFeedData():
-    opener = urllib.urlopen(urljoin(aam_webfeed20_baseurl, FEED_PATH))
+    opener = urllib.urlopen(urljoin(getURL(type='webfeed'), 'webfeed/oobe/aam20/mac/updaterfeed.xml'))
     xml = opener.read()
     opener.close()
     search = re.compile("<(.+)>")
@@ -69,18 +89,19 @@ def parseFeedData(feed_list):
     return updates
 
 
-def getChannelsFromManifests(manifests):
-    """Takes a list of manifest plist objects and returns a dict of
+def getChannelsFromProductPlists(products):
+    """Takes a list of product plist objects and returns a dict of
     channels and what each is an update_for."""
     channels = {}
-    for manifest in manifests:
-        if 'products' in manifest.keys():
-            for product in manifest['products']:
-                for channel in product['channels']:
-                    if not channel in channels.keys():
-                        channels[channel] = {}
-                        channels[channel]['update_for'] = []
-                    channels[channel]['update_for'].append(product['name'])
+    for product in products:
+        for channel in product['channels']:
+            if not channel in channels.keys():
+                channels[channel] = {}
+                channels[channel]['munki_update_for'] = []
+            if 'munki_update_for' in product.keys():
+                channels[channel]['munki_update_for'].append(product['munki_update_for'])
+            if 'munki_repo_destination_path' in product.keys():
+                channels[channel]['munki_repo_destination_path'] = product['munki_repo_destination_path']
     return channels
 
 
@@ -94,18 +115,8 @@ def getUpdatesForChannel(channel_id, parsed_feed):
     return updates
 
 
-def getBaseProductsForChannel(channel_id, updates_plist):
-    base_products = []
-    for base in updates_plist['products']:
-        if channel_id in base['channels']:
-            base_products.append(base['name'])
-
-    if not len(base_products):
-        base_products = None
-    return base_products
-
-
 def updateIsRevoked(channel, product, version, parsed_feed):
+    """Returns True if an update is listed as revoked for a channel"""
     for update in parsed_feed:
         if (update.product, update.version) == (product, version) \
             and update.channel in [channel, 'ALL'] \
@@ -114,27 +125,86 @@ def updateIsRevoked(channel, product, version, parsed_feed):
     return False
 
 
-def errorExit(err_string, err_code=1):
-    print err_string
-    sys.exit(err_code)
+def buildProductPlist(esd_path, munki_update_for):
+    plist = {}
+    for root, dirs, files in os.walk(esd_path):
+        if 'payloads' in dirs and 'Install.app' in dirs:
+            payload_dir = os.path.join(root, 'payloads')
+            channels = []
+            from glob import glob
+            proxies = glob(payload_dir + '/*/*.proxy.xml')
+            for proxy in proxies:
+                print "Found %s" % os.path.basename(proxy)
+                pobj = ET.parse(proxy).getroot()
+                chan = pobj.find('Channel')
+                if chan is not None:
+                    channels.append(chan.get('id'))
+            plist['channels'] = channels
+            if munki_update_for:
+                plist['munki_update_for'] = munki_update_for
+            break
+    return plist
 
 
 def main():
-    feed = getFeedData()
-    parsed = parseFeedData(feed)
+    usage = """
 
-    o = optparse.OptionParser()
+%prog --product-plist path/to/plist [-p path/to/another] [--munkiimport] [options]
+%prog --build-product-plist [--munki-update-for] path/to/Adobe/ESD/volume
+
+The first form will check and cache updates for the channels listed in the plist
+specified by the --product-plist option.
+
+The second form will generate a product plist containing every channel ID available
+for the product whose ESD installer volume is mounted at the path.
+
+See %prog --help for more options and the README for more detail."""
+
+    o = optparse.OptionParser(usage=usage)
     o.add_option("-m", "--munkiimport", action="store_true", default=False,
-        help="Process downloaded updates with munkiimport using options defined in %s." % os.path.basename(updates_plist))
+        help="Process downloaded updates with munkiimport using options defined in %s." % os.path.basename(settings_plist))
     o.add_option("-r", "--include-revoked", action="store_true", default=False,
         help="Include updates that have been marked as revoked in Adobe's feed XML.")
     o.add_option("-f", "--force-import", action="store_true", default=False,
         help="Run munkiimport even if it finds an identical pkginfo and installer_item_hash in the repo.")
     o.add_option("-c", "--make-catalogs", action="store_true", default=False,
         help="Automatically run makecatalogs after importing into Munki.")
+    o.add_option("-p", "--product-plist", "--plist", action="append",
+        help="Path to an Adobe product plist, for example as generated using the --build-product-plist option. \
+Can be specified multiple times.")
+    o.add_option("-b", "--build-product-plist", action="store",
+        help="Given a path to a mounted Adobe product ESD installer, save a containing every Channel ID found for the product.")
+    o.add_option("-u", "--munki-update-for", action="store",
+        help="To be used with the --build-product-plist option, specifies the base Munki product.")
 
     opts, args = o.parse_args()
 
+    if len(sys.argv) == 1:
+        o.print_usage()
+        sys.exit(0)
+    if opts.munki_update_for and not opts.build_product_plist:
+        errorExit("--munki-update-for requires the --build-product-plist option!")
+    if not opts.build_product_plist and not opts.product_plist:
+        errorExit("One of --product-plist or --build-product-plist must be specified!")
+
+    if opts.build_product_plist:
+        plist = buildProductPlist(opts.build_product_plist, opts.munki_update_for)
+        if not plist:
+            errorExit("Couldn't build payloads from path %s." % opts.build_product_plist)
+        else:
+            if opts.munki_update_for:
+                output_plist_name = opts.munki_update_for + '.plist'
+            else:
+                output_plist_name = os.path.basename(opts.build_product_plist.replace(' ', '')) + '.plist'
+            output_plist_file = os.path.join(SCRIPT_DIR, output_plist_name)
+            try:
+                plistlib.writePlist(plist, output_plist_file)
+            except:
+                errorExit("Error writing plist to %s" % output_plist_file)
+            print "Product plist written to %s" % output_plist_file
+            sys.exit(0)
+
+    # munki sanity checks
     if opts.munkiimport:
         if not os.path.exists('/usr/local/munki'):
             errorExit("No Munki installation could be found. Get it at http://code.google.com/p/munki")
@@ -142,22 +212,18 @@ def main():
         munkiimport_prefs = os.path.expanduser('~/Library/Preferences/com.googlecode.munki.munkiimport.plist')
         if not os.path.exists(munkiimport_prefs):
             errorExit("Your Munki repo seems to not be configured. Run munkiimport --configure first.")
-
         try:
             import imp
             # munkiimport doesn't end in .py, so we use imp to make it available to the import system
             imp.load_source('munkiimport', os.path.join(MUNKI_DIR, 'munkiimport'))
             import munkiimport
-
         except ImportError:
             errorExit("There was an error importing munkilib, which is needed for --munkiimport functionality.")
+        if not munkiimport.repoAvailable():
+            errorExit("The Munki repo cannot be located. This tool is not interactive; first ensure the repo is mounted.")
 
-    # set our output directory and perform sanity checks
-    if 'local_cache_path' not in updates_manifest.keys():
-        local_cache_path = DEFAULT_LOCAL_CACHE_PATH
-    else:
-        local_cache_path = updates_manifest['local_cache_path']
-
+    # set up the cache path
+    local_cache_path = pref('local_cache_path')
     if os.path.exists(local_cache_path) and not os.path.isdir(local_cache_path):
         errorExit("Local cache path %s was specified and exists, but it is not a directory!" %
             local_cache_path)
@@ -174,7 +240,34 @@ def main():
     except:
         errorExit("Cannot write to local cache path!" % local_cache_path)
 
-    channels = getChannelsFromManifests([updates_manifest])
+    # load our product plists
+    product_plists = []
+    for plist_path in opts.product_plist:
+        try:
+            plist = plistlib.readPlist(plist_path)
+        except:
+            errorExit("Couldn't read plist at %s!" % plist_path)
+        if 'channels' not in plist.keys():
+            errorExit("Plist at %s is missing a 'channels' array, which is required." % plist_path)
+        else:
+            product_plists.append(plist)
+
+    # sanity-check the settings plist for unknown keys
+    if os.path.exists(settings_plist):
+        try:
+            app_options = plistlib.readPlist(settings_plist)
+        except:
+            errorExit("There was an error loading the settings plist at %s" % settings_plist)
+        for k in app_options.keys():
+            if k not in supported_settings_keys:
+                print "Warning: Unknown setting in %s: %s" % (os.path.basename(settings_plist), k)
+
+    # pull feed info and populate channels
+    feed = getFeedData()
+    parsed = parseFeedData(feed)
+    channels = getChannelsFromProductPlists(product_plists)
+
+    # begin caching run and build updates dictionary with product/version info
     updates = {}
     for channelid in channels.keys():
         print "Channel %s" % channelid
@@ -190,7 +283,7 @@ def main():
             updateIsRevoked(update.channel, update.product, update.version, parsed):
                 print "Update is revoked. Skipping update."
                 continue
-            details_url = urljoin(aam_updates20_baseurl, UPDATE_PATH_PREFIX) + \
+            details_url = urljoin(getURL('updates'), UPDATE_PATH_PREFIX) + \
                 '/%s/%s/%s.xml' % (update.product, update.version, update.version)
             try:
                 channel_xml = urllib.urlopen(details_url)
@@ -221,10 +314,12 @@ def main():
                         updates[update.product][update.version]['channel_ids'] = []
                         updates[update.product][update.version]['update_for'] = []
                     updates[update.product][update.version]['channel_ids'].append(update.channel)
-                    updates[update.product][update.version]['update_for'] = channels[update.channel]['update_for']
+                    for opt in ['munki_repo_destination_path', 'munki_update_for']:
+                        if opt in channels[update.channel].keys():
+                            updates[update.product][update.version][opt] = channels[update.channel][opt]
                     updates[update.product][update.version]['description'] = description
                     updates[update.product][update.version]['display_name'] = display_name
-                    dmg_url = urljoin(aam_updates20_baseurl, UPDATE_PATH_PREFIX) + \
+                    dmg_url = urljoin(getURL('updates'), UPDATE_PATH_PREFIX) + \
                             '/%s/%s/%s' % (update.product, update.version, filename)
                     output_filename = os.path.join(local_cache_path, "%s-%s.dmg" % (
                             update.product, update.version))
@@ -236,18 +331,20 @@ def main():
                             print "Skipping download of %s, we already have it." % update.product
                             need_to_dl = False
                         else:
-                            print "Incomplete download, re-starting."
+                            print "Incomplete download (%s bytes on disk, should be %s), re-starting." % (
+                                we_have_bytes, bytes)
                     if need_to_dl:
                         print "Downloading update at %s" % dmg_url
                         urllib.urlretrieve(dmg_url, output_filename)
     print "Done caching updates."
 
+    # begin munkiimport run
     if opts.munkiimport:
         for (update_name, update_meta) in updates.items():
             for (version_name, version_meta) in update_meta.items():
                 need_to_import = True
                 item_name = "%s%s" % (update_name.replace('-', '_'),
-                    updates_manifest['pkginfo_name_suffix'])
+                    pref('munki_pkginfo_name_suffix'))
                 # Do 'exists in repo' checks if we're not forcing imports
                 if opts.force_import is False:
                     pkginfo = munkiimport.makePkgInfo(['--name',
@@ -255,7 +352,8 @@ def main():
                                             version_meta['local_path']],
                                             False)
                     # Cribbed from munkiimport
-                    print "Looking for a matching pkginfo via munkiimport.."
+                    print "Looking for a matching pkginfo for %s %s.." % (
+                        item_name, version_name)
                     matchingpkginfo = munkiimport.findMatchingPkginfo(pkginfo)
                     if matchingpkginfo:
                         print "Got a matching pkginfo."
@@ -269,23 +367,31 @@ def main():
 
                 if need_to_import:
                     print "Importing %s into munki." % item_name
-                    munkiimport_opts = updates_manifest['munkiimport_options'][:]
-                    if '--subdirectory' not in munkiimport_opts:
-                        munkiimport_opts.append('--subdirectory')
-                        munkiimport_opts.append(DEFAULT_MUNKI_PKG_SUBDIR)
-                    base_products = version_meta['update_for']
-                    print "Applicable base products for Munki: %s" % ', '.join(base_products)
-                    for base_product in base_products:
-                        munkiimport_opts.append('--update_for')
-                        munkiimport_opts.append(base_product)
+                    munkiimport_opts = pref('munkiimport_options')[:]
+                    if 'munki_repo_destination_path' in version_meta.keys():
+                        subdir = version_meta['munki_repo_destination_path']
+                    else:
+                        subdir = pref('munki_repo_destination_path')
+                    munkiimport_opts.append('--subdirectory')
+                    munkiimport_opts.append(subdir)
+                    if not 'munki_update_for' in version_meta.keys():
+                        print "Warning: %s does not have an update_for key specified!"
+                    else:
+                        print "Applicable base products for Munki: %s" % ', '.join(version_meta['munki_update_for'])
+                        for base_product in version_meta['munki_update_for']:
+                            munkiimport_opts.append('--update_for')
+                            munkiimport_opts.append(base_product)
                     munkiimport_opts.append('--name')
                     munkiimport_opts.append(item_name)
                     munkiimport_opts.append('--displayname')
                     munkiimport_opts.append(version_meta['display_name'])
                     munkiimport_opts.append('--description')
                     munkiimport_opts.append(version_meta['description'])
-
+                    if '--catalog' not in munkiimport_opts:
+                        munkiimport_opts.append('--catalog')
+                        munkiimport_opts.append('testing')
                     import_cmd = ['/usr/local/munki/munkiimport', '--nointeractive']
+                    # Load our app munkiimport options overrides last
                     import_cmd += munkiimport_opts
                     import_cmd.append(version_meta['local_path'])
                     print "Calling munkiimport on %s version %s, file %s." % (
@@ -296,7 +402,6 @@ def main():
 
         print "Done importing into Munki."
         if opts.make_catalogs:
-            print "Rebuilding catalogs..."
             munkiimport.makeCatalogs()
 
 if __name__ == '__main__':
