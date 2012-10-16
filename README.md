@@ -55,7 +55,7 @@ It's possible this may miss some obscure update that an automatically-generated 
 
 Unlike Apple, Adobe retains its old updates in its feed, marking them as revoked. By default, aamporter will not fetch and import these, but this can be overrided with the `--include-revoked` option. CS updates are almost always cumulative patches, and CS apps are not easily reverted to previous versions (instead requiring a full uninstall/reinstall), but there may particular scenarios for some environments where it's useful to have the earlier versions of updates available.
 
-<a name="caveats"></a>## Caveats
+## Caveats<a name="caveats"></a>
 
 ### Product plists are your responsibility
 
