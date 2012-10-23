@@ -45,7 +45,7 @@ def pref(name):
     if name in DEFAULT_PREFS.keys():
         value = DEFAULT_PREFS[name]
     if os.path.exists(settings_plist):
-        p = plistlib.readplist(settings_plist)
+        p = plistlib.readPlist(settings_plist)
         if name in p.keys():
             value = p[name]
     if not os.path.exists(settings_plist) and name not in DEFAULT_PREFS.keys():
