@@ -150,7 +150,7 @@ def main():
     usage = """
 
 %prog --product-plist path/to/plist [-p path/to/another] [--munkiimport] [options]
-%prog --build-product-plist [--munki-update-for] path/to/Adobe/ESD/volume
+%prog --build-product-plist path/to/Adobe/ESD/volume [--munki-update-for] BaseProductPkginfoName
 
 The first form will check and cache updates for the channels listed in the plist
 specified by the --product-plist option.
