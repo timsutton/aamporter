@@ -75,8 +75,8 @@ def getFeedData():
 def parseFeedData(feed_list):
     updates = []
     for update in feed_list:
-        # TODO: Figure out what FEATURE is (ie. Illustrator 16.2??)
-        if not update.startswith('COMBO'):      # skipping COMBOs for now
+        # skip COMBOs (language packs?) and FEATUREs (Creative Cloud updates)
+        if not update.startswith('COMBO') and not update.startswith('FEATURE'):
             cmpnts = update.split(',')
             ver = cmpnts[-1]     # version: last
             prod = cmpnts[-2]     # product: 2nd last
