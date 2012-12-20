@@ -298,6 +298,14 @@ Can be specified multiple times.")
                 break
 
             if details_xml is not None:
+                licensing_type_elem = details_xml.find('TargetLicensingType')
+                if licensing_type_elem is not None:
+                    licensing_type_elem = licensing_type_elem.text
+                    # TargetLicensingType seems to be 1 for CC updates, 2 for "regular" updates
+                    if licensing_type_elem == '1':
+                        print "TargetLicensingType of %s found. This seems to be Creative Cloud updates. Skipping update." % licensing_type_elem
+                        break
+
                 file_element = details_xml.find('InstallFiles/File')
                 if file_element is None:
                     print "No File XML element found. Skipping update."
