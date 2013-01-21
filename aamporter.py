@@ -67,7 +67,7 @@ def getFeedData():
     opener = urllib.urlopen(urljoin(getURL(type='webfeed'), 'webfeed/oobe/aam20/mac/updaterfeed.xml'))
     xml = opener.read()
     opener.close()
-    search = re.compile("<(.+)>")
+    search = re.compile("<(.+?)>")
     results = re.findall(search, xml)
     return results
 
