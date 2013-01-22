@@ -29,7 +29,7 @@ DEFAULT_PREFS = {
 settings_plist = os.path.join(SCRIPT_DIR, 'aamporter.plist')
 supported_settings_keys = DEFAULT_PREFS.keys()
 supported_settings_keys.append('aam_server_baseurl')
-UpdateMeta = namedtuple('update', ['channel', 'product', 'version', 'revoked', 'revoked_all'])
+UpdateMeta = namedtuple('update', ['channel', 'product', 'version', 'revoked'])
 UPDATE_PATH_PREFIX = 'updates/oobe/aam20/mac'
 MUNKI_DIR = '/usr/local/munki'
 
