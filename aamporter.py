@@ -27,11 +27,9 @@ DEFAULT_PREFS = {
     'local_cache_path': os.path.join(SCRIPT_DIR, 'aamcache')
 }
 settings_plist = os.path.join(SCRIPT_DIR, 'aamporter.plist')
-supported_settings_keys = ['munki_pkginfo_name_suffix',
-                            'munki_repo_destination_path',
-                            'munkiimport_options',
-                            'aam_server_baseurl']
-UpdateMeta = namedtuple('update', ['channel', 'product', 'version', 'revoked'])
+supported_settings_keys = DEFAULT_PREFS.keys()
+supported_settings_keys.append('aam_server_baseurl')
+UpdateMeta = namedtuple('update', ['channel', 'product', 'version', 'revoked', 'revoked_all'])
 UPDATE_PATH_PREFIX = 'updates/oobe/aam20/mac'
 MUNKI_DIR = '/usr/local/munki'
 
@@ -42,13 +40,14 @@ def errorExit(err_string, err_code=1):
 
 
 def pref(name):
-    if name in DEFAULT_PREFS.keys():
-        value = DEFAULT_PREFS[name]
+    p = {}
     if os.path.exists(settings_plist):
         p = plistlib.readPlist(settings_plist)
-        if name in p.keys():
-            value = p[name]
-    if not os.path.exists(settings_plist) and name not in DEFAULT_PREFS.keys():
+    if name in DEFAULT_PREFS.keys() and not name in p.keys():
+        value = DEFAULT_PREFS[name]
+    elif name in p.keys():
+        value = p[name]
+    else:
         value = None
     return value
 
