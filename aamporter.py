@@ -187,14 +187,18 @@ Can be specified multiple times.")
         errorExit("One of --product-plist or --build-product-plist must be specified!")
 
     if opts.build_product_plist:
-        plist = buildProductPlist(opts.build_product_plist, opts.munki_update_for)
+        esd_path = opts.build_product_plist
+        if esd_path.endswith('/'):
+            esd_path = esd_path[0:-1]
+        plist = buildProductPlist(esd_path, opts.munki_update_for)
         if not plist:
-            errorExit("Couldn't build payloads from path %s." % opts.build_product_plist)
+            errorExit("Couldn't build payloads from path %s." % esd_path)
         else:
             if opts.munki_update_for:
-                output_plist_name = opts.munki_update_for + '.plist'
+                output_plist_name = opts.munki_update_for
             else:
-                output_plist_name = os.path.basename(opts.build_product_plist.replace(' ', '')) + '.plist'
+                output_plist_name = os.path.basename(esd_path.replace(' ', ''))
+            output_plist_name += '.plist'
             output_plist_file = os.path.join(SCRIPT_DIR, output_plist_name)
             try:
                 plistlib.writePlist(plist, output_plist_file)
