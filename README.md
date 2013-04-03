@@ -117,7 +117,8 @@ Configure the destination path for updates globally. This option can also be set
 
 ## Current issues:
 
-* console output is not nicely structured
+* the Premiere CS6 6.0.2 update is currently not downloaded (without using the `--include-revoked` option), due to an over-simplified implementation of AAM's "revoking/recommending" update check logic, which should require a good portion of aamporter's feed scrape logic to be be rewritten.
+* console output is not nicely structured.
 * for channels shared across product plists, the `update_for` keys in pkginfos will only take these products into account for plists passed to aamporter in a single command invocation. in other words, they are not (yet) implicitly loaded from other plists on disk.
 * see [Caveats](#caveats) section
 
