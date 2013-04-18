@@ -29,6 +29,8 @@ aamporter calls upon functionality in munkiimport that will detect whether you a
 
 Once a run is complete and new items have been imported, catalogs will not be rebuilt by default. The `--make-catalogs` option, when set, will trigger makecatalogs at the end of the run.
 
+Some organizations can't use `munkiimport` and need to use `makepkginfo` instead.  You can have aamporter call `makepkginfo` by setting `munki_tool` to `makepkginfo` in the `aamporter.plist` file.
+
 ### Generating product plists
 
 The `--build-product-plist` option will generate a product plist automatically, using all Channel IDs found at the path of an Adobe ESD installer:
@@ -114,6 +116,10 @@ The base URL for a local AUSST server, if you have one already configured and wo
 <a name="config_munki_repo_destination_path"></a>**munki_repo_destination_path**
 
 Configure the destination path for updates globally. This option can also be set within each product plist, if you like to keep your updates grouped by CS version.
+
+<a name="munki_tool"></a>**munki_tool**
+
+Select either `munkiimport` or `makepkginfo`.  `munkiimport` is the default.
 
 ## Current issues:
 
