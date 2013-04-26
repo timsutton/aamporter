@@ -417,7 +417,6 @@ Can be specified multiple times.")
                     import_cmd.append(version_meta['local_path'])
                     print "Calling %s on %s version %s, file %s." % (
                         pref('munki_tool'), update_name, version_name, version_meta['local_path'])
-                    print import_cmd
                     munkiprocess = subprocess.Popen(import_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     # wait for the process to terminate
                     stdout, stderr = munkiprocess.communicate()
