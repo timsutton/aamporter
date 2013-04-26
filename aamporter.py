@@ -24,7 +24,8 @@ DEFAULT_PREFS = {
     'munki_pkginfo_name_suffix': '_Update',
     'munki_repo_destination_path': 'apps/Adobe/CS_Updates',
     'munkiimport_options': [],
-    'local_cache_path': os.path.join(SCRIPT_DIR, 'aamcache')
+    'local_cache_path': os.path.join(SCRIPT_DIR, 'aamcache'),
+    'munki_tool': 'munkiimport'
 }
 settings_plist = os.path.join(SCRIPT_DIR, 'aamporter.plist')
 supported_settings_keys = DEFAULT_PREFS.keys()
@@ -213,17 +214,18 @@ Can be specified multiple times.")
             errorExit("No Munki installation could be found. Get it at http://code.google.com/p/munki")
         sys.path.insert(0, MUNKI_DIR)
         munkiimport_prefs = os.path.expanduser('~/Library/Preferences/com.googlecode.munki.munkiimport.plist')
-        if not os.path.exists(munkiimport_prefs):
-            errorExit("Your Munki repo seems to not be configured. Run munkiimport --configure first.")
-        try:
-            import imp
-            # munkiimport doesn't end in .py, so we use imp to make it available to the import system
-            imp.load_source('munkiimport', os.path.join(MUNKI_DIR, 'munkiimport'))
-            import munkiimport
-        except ImportError:
-            errorExit("There was an error importing munkilib, which is needed for --munkiimport functionality.")
-        if not munkiimport.repoAvailable():
-            errorExit("The Munki repo cannot be located. This tool is not interactive; first ensure the repo is mounted.")
+        if pref('munki_tool') == 'munkiimport':
+            if not os.path.exists(munkiimport_prefs):
+                errorExit("Your Munki repo seems to not be configured. Run munkiimport --configure first.")
+            try:
+                import imp
+                # munkiimport doesn't end in .py, so we use imp to make it available to the import system
+                imp.load_source('munkiimport', os.path.join(MUNKI_DIR, 'munkiimport'))
+                import munkiimport
+            except ImportError:
+                errorExit("There was an error importing munkilib, which is needed for --munkiimport functionality.")
+            if not munkiimport.repoAvailable():
+                errorExit("The Munki repo cannot be located. This tool is not interactive; first ensure the repo is mounted.")
 
     # set up the cache path
     local_cache_path = pref('local_cache_path')
@@ -357,7 +359,7 @@ Can be specified multiple times.")
                 item_name = "%s%s" % (update_name.replace('-', '_'),
                     pref('munki_pkginfo_name_suffix'))
                 # Do 'exists in repo' checks if we're not forcing imports
-                if opts.force_import is False:
+                if opts.force_import is False and pref("munki_tool") == "munkiimport":
                     pkginfo = munkiimport.makePkgInfo(['--name',
                                             item_name,
                                             version_meta['local_path']],
@@ -379,12 +381,13 @@ Can be specified multiple times.")
                 if need_to_import:
                     print "Importing %s into munki." % item_name
                     munkiimport_opts = pref('munkiimport_options')[:]
-                    if 'munki_repo_destination_path' in version_meta.keys():
-                        subdir = version_meta['munki_repo_destination_path']
-                    else:
-                        subdir = pref('munki_repo_destination_path')
-                    munkiimport_opts.append('--subdirectory')
-                    munkiimport_opts.append(subdir)
+                    if pref("munki_tool") == 'munkiimport':
+                        if 'munki_repo_destination_path' in version_meta.keys():
+                            subdir = version_meta['munki_repo_destination_path']
+                        else:
+                            subdir = pref('munki_repo_destination_path')
+                        munkiimport_opts.append('--subdirectory')
+                        munkiimport_opts.append(subdir)
                     if not 'munki_update_for' in version_meta.keys():
                         print "Warning: %s does not have an update_for key specified!"
                     else:
@@ -401,15 +404,33 @@ Can be specified multiple times.")
                     if '--catalog' not in munkiimport_opts:
                         munkiimport_opts.append('--catalog')
                         munkiimport_opts.append('testing')
-                    import_cmd = ['/usr/local/munki/munkiimport', '--nointeractive']
+                    if pref('munki_tool') == 'munkiimport':
+                        import_cmd = ['/usr/local/munki/munkiimport', '--nointeractive']
+                    elif pref('munki_tool') == 'makepkginfo':
+                        import_cmd = ['/usr/local/munki/makepkginfo']
+                    else:
+                        print "Not sure what tool you wanted to use; munki_tool should be 'munkiimport' " + \
+                        "or 'makepkginfo' but we got '%s'.  Skipping import." % (pref('munki_tool'))
+                        break
                     # Load our app munkiimport options overrides last
                     import_cmd += munkiimport_opts
                     import_cmd.append(version_meta['local_path'])
-                    print "Calling munkiimport on %s version %s, file %s." % (
-                        update_name, version_name, version_meta['local_path'])
-                    import_retcode = subprocess.call(import_cmd)
+                    print "Calling %s on %s version %s, file %s." % (
+                        pref('munki_tool'), update_name, version_name, version_meta['local_path'])
+                    print import_cmd
+                    munkiprocess = subprocess.Popen(import_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    # wait for the process to terminate
+                    stdout, stderr = munkiprocess.communicate()
+                    import_retcode = munkiprocess.returncode
                     if import_retcode:
                         print "munkiimport returned an error. Skipping update.."
+                    else:
+                        if pref('munki_tool') == 'makepkginfo':
+                            plist_path = os.path.splitext(version_meta['local_path'])[0] + ".plist"
+                            with open(plist_path, "w") as plist:
+                                plist.write(stdout)
+                                print "pkginfo written to %s" % plist_path
+
 
         print "Done importing into Munki."
         if opts.make_catalogs:
