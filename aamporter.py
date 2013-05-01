@@ -391,8 +391,11 @@ Can be specified multiple times.")
                     if not 'munki_update_for' in version_meta.keys():
                         print "Warning: %s does not have an update_for key specified!"
                     else:
-                        print "Applicable base products for Munki: %s" % ', '.join(version_meta['munki_update_for'])
-                        for base_product in version_meta['munki_update_for']:
+                        flatten = lambda *n: (e for a in n
+                            for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
+                        update_catalogs = list(flatten(version_meta['munki_update_for']))
+                        print "Applicable base products for Munki: %s" % ', '.join(update_catalogs)
+                        for base_product in update_catalogs:
                             munkiimport_opts.append('--update_for')
                             munkiimport_opts.append(base_product)
                     munkiimport_opts.append('--name')
