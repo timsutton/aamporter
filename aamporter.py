@@ -391,6 +391,7 @@ Can be specified multiple times.")
                     if not 'munki_update_for' in version_meta.keys():
                         print "Warning: %s does not have an update_for key specified!"
                     else:
+                        # handle case of munki_update_for being either a list or a string
                         flatten = lambda *n: (e for a in n
                             for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
                         update_catalogs = list(flatten(version_meta['munki_update_for']))
