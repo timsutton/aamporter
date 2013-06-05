@@ -55,7 +55,11 @@ It's possible this may miss some obscure update that an automatically-generated 
 
 ### Revoked updates
 
-Unlike Apple, Adobe retains its old updates in its feed, marking them as revoked. By default, aamporter will not fetch and import these, but this can be overrided with the `--include-revoked` option. CS updates are almost always cumulative patches, and CS apps are not easily reverted to previous versions (instead requiring a full uninstall/reinstall), but there may particular scenarios for some environments where it's useful to have the earlier versions of updates available.
+Unlike Apple, Adobe retains some old updates in its feed, marking them as revoked. By default, aamporter will not fetch and import these, but this can be overrided with the `--include-revoked` option. CS updates are almost always cumulative patches, and CS apps are not easily reverted to previous versions (instead requiring a full uninstall/reinstall), but there may particular scenarios for some environments where it's useful to have the earlier versions of updates available.
+
+### Creative Cloud
+
+As of early June 2013, several products also have Creative Cloud-related updates available in the updater feed, with more expected to come very shortly. A product's metadata XML seems to always define the element `TargetLicensingType` to have a value of `1` for Creative Cloud updates, and this is currently used to identify these and skip them, as they aren't designed to be deployed. In the near future, as the new CC "versions" of other applications are released, this detection mechanism will need to be re-evaluated and an option will be added for including/excluding CC updates.
 
 ## Caveats<a name="caveats"></a>
 

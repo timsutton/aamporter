@@ -75,8 +75,8 @@ def getFeedData():
 def parseFeedData(feed_list):
     updates = []
     for update in feed_list:
-        # skip COMBOs (language packs?) and FEATUREs (Creative Cloud updates)
-        if not update.startswith('COMBO') and not update.startswith('FEATURE'):
+        # skip COMBOs (language packs?)
+        if not update.startswith('COMBO'):
             cmpnts = update.split(',')
             ver = cmpnts[-1]     # version: last
             prod = cmpnts[-2]     # product: 2nd last
