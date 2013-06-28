@@ -18,6 +18,7 @@ from collections import namedtuple
 from xml.etree import ElementTree as ET
 import optparse
 import subprocess
+import sqlite3
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 DEFAULT_PREFS = {
@@ -131,18 +132,33 @@ def buildProductPlist(esd_path, munki_update_for):
         if 'payloads' in dirs and 'Install.app' in dirs:
             payload_dir = os.path.join(root, 'payloads')
             channels = []
-            from glob import glob
-            proxies = glob(payload_dir + '/*/*.proxy.xml')
-            for proxy in proxies:
-                print "Found %s" % os.path.basename(proxy)
-                pobj = ET.parse(proxy).getroot()
-                chan = pobj.find('Channel')
-                if chan is not None:
-                    channels.append(chan.get('id'))
+
+            media_db_path = os.path.join(payload_dir, 'Media_db.db')
+            if os.path.exists(media_db_path):
+                conn = sqlite3.connect(media_db_path)
+                c = conn.cursor()
+                c.execute("""SELECT value from PayloadData where PayloadData.key = 'ChannelID'""")
+                result = c.fetchall()
+                c.close()
+                if result:
+                    channels = [i[0] for i in result]
+                else:
+                    errorExit("Error: No ChannelIds could be retrieved from the Media_db!")
+            else:
+                # fall back to old method of scraping proxy.xml, not compatible with CC products
+                print ("Warning: No Media_db.db file found to scrape ChannelIds, "
+                      "falling back to using *.proxy.xml files.")
+                from glob import glob
+                proxies = glob(payload_dir + '/*/*.proxy.xml')
+                for proxy in proxies:
+                    print "Found %s" % os.path.basename(proxy)
+                    pobj = ET.parse(proxy).getroot()
+                    chan = pobj.find('Channel')
+                    if chan is not None:
+                        channels.append(chan.get('id'))
             plist['channels'] = channels
             if munki_update_for:
                 plist['munki_update_for'] = munki_update_for
-            break
     return plist
 
 
