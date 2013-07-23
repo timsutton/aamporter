@@ -117,13 +117,61 @@ def getUpdatesForChannel(channel_id, parsed_feed):
 
 
 def updateIsRevoked(channel, product, version, parsed_feed):
-    """Returns True if an update is listed as revoked for a channel"""
+    """Returns True if an update is considered revoked for a channel.
+    It seems that if a product is listed with REVOKE, it can still
+    be eligible if it appears _again_ after the REVOKE line. So we
+    take the result of the last entry for the update.
+
+    Ordered sample of entries from from AdobePremiereProCS6-6.0.0-Trial below.
+    Neither update is really revoked, and it seems to just takes the
+    highest-versioned update.
+
+    <AdobePremiereProCS6-6.0.0-Trial,AdobePremiereProCS6-6.0.0-Trial,6.0.2>
+    <REVOKE,ALL,AdobePremiereProCS6-6.0.0-Trial,6.0.2>
+    <REVOKE,ALL,AdobePremiereProCS6-6.0.0-Trial,6.0.1>
+    <AdobePremiereProCS6-6.0.0-Trial,AdobePremiereProCS6-6.0.0-Trial,6.0.2>
+    <AdobePremiereProCS6-6.0.0-Trial,AdobePremiereProCS6-6.0.0-Trial,6.0.1>
+
+    Some revoke-related strings from
+    Adobe Application\ Manager/UWA/UpdaterCore.framework/Versions/A/UpdaterCore:
+
+    Revoke Update: Invalid tracker input.No Recommendation
+    Revoke Update: Removing whole update as its a REVOKE ALL.
+    Revoke Update: Invalid tracker input.ChannelID should be uniquely present
+    Revoke Update: Invalid tracker input.OwningID and UpdateID should be uniquely present
+    Revoke Update: Removing whole update as this was the last recommentation.
+    Revoke Update: Removing only this recommentation and not the whole update.
+
+    """
+    revoked = False
     for update in parsed_feed:
         if (update.product, update.version) == (product, version) \
-            and update.channel in [channel, 'ALL'] \
-            and update.revoked == True:
-                return True
-    return False
+            and update.channel in [channel, 'ALL']:
+            if update.revoked == True:
+                revoked = True
+            else:
+                revoked = False
+    return revoked
+
+
+def getHighestVersionOfProduct(updates, product, include_revoked=False):
+    from distutils.version import LooseVersion
+
+    def compare_versions(a, b):
+        """Internal comparison function for use with sorting"""
+        return cmp(LooseVersion(a), LooseVersion(b))
+
+    versions = []
+    for update in updates:
+        if update.product == product:
+            if not include_revoked and not update.revoked:
+                versions.append(update.version)
+    if versions:
+        versions.sort(compare_versions)
+        highest = versions[-1]
+        return highest
+    else:
+        return None
 
 
 def buildProductPlist(esd_path, munki_update_for):
@@ -300,10 +348,17 @@ Can be specified multiple times.")
         for update in channel_updates:
             print "Update %s, %s..." % (update.product, update.version)
 
-            if opts.include_revoked is False and \
-            updateIsRevoked(update.channel, update.product, update.version, parsed):
-                print "Update is revoked. Skipping update."
-                continue
+            if opts.include_revoked is False:
+                highest_version = getHighestVersionOfProduct(channel_updates, update.product)
+                if update.version != highest_version:
+                    print "%s is not the highest version available (%s) for this update. Skipping.." % (
+                        update.version, highest_version)
+                    continue
+
+                if updateIsRevoked(update.channel, update.product, update.version, parsed):
+                    print "Update is revoked. Skipping update."
+                    continue
+
             details_url = urljoin(getURL('updates'), UPDATE_PATH_PREFIX) + \
                 '/%s/%s/%s.xml' % (update.product, update.version, update.version)
             try:
