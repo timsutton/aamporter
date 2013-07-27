@@ -286,6 +286,7 @@ Can be specified multiple times.")
                 # munkiimport doesn't end in .py, so we use imp to make it available to the import system
                 imp.load_source('munkiimport', os.path.join(MUNKI_DIR, 'munkiimport'))
                 import munkiimport
+                munkiimport.REPO_PATH = munkiimport.pref('repo_path')
             except ImportError:
                 errorExit("There was an error importing munkilib, which is needed for --munkiimport functionality.")
             if not munkiimport.repoAvailable():
