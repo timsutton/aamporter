@@ -237,7 +237,7 @@ See %prog --help for more options and the README for more detail."""
         help="Path to an Adobe product plist, for example as generated using the --build-product-plist option. \
 Can be specified multiple times.")
     o.add_option("-b", "--build-product-plist", action="store",
-        help="Given a path to a mounted Adobe product ESD installer, save a containing every Channel ID found for the product.")
+        help="Given a path to a mounted Adobe product ESD installer, save a product plist containing every Channel ID found for the product.")
     o.add_option("-u", "--munki-update-for", action="store",
         help="To be used with the --build-product-plist option, specifies the base Munki product.")
 
