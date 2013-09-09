@@ -32,7 +32,7 @@ DEFAULT_PREFS = {
 settings_plist = os.path.join(SCRIPT_DIR, 'aamporter.plist')
 supported_settings_keys = DEFAULT_PREFS.keys()
 supported_settings_keys.append('aam_server_baseurl')
-UpdateMeta = namedtuple('update', ['channel', 'product', 'version', 'revoked'])
+UpdateMeta = namedtuple('update', ['channel', 'product', 'version', 'revoked', 'xml'])
 UPDATE_PATH_PREFIX = 'updates/oobe/aam20/mac'
 MUNKI_DIR = '/usr/local/munki'
 ERROR = 50
@@ -132,7 +132,7 @@ def parseFeedData(feed_list):
                 revoked = True
             L.log(DEBUG, "Parsed: Channel: {0}, Product: {1}, Version: {2}, Revoked: {3}".format(
                 chan, prod, ver, revoked))
-            updates.append(UpdateMeta(channel=chan, product=prod, version=ver, revoked=revoked))
+            updates.append(UpdateMeta(channel=chan, product=prod, version=ver, revoked=revoked, xml=None))
     return updates
 
 
@@ -162,21 +162,110 @@ def getUpdatesForChannel(channel_id, parsed_feed):
     return updates
 
 
+def addUpdatesXML(updates, skipTargetLicensingCC=True):
+    """Takes a list of UpdateMeta objects and adds an ElementTree object
+    with the root of the contents of the update's metadata XML.
+
+    Also, when skipTargetLicensingCC is True, remove any updates
+    with TargetLicensingType of '1'. Further explanation:
+
+    TargetLicensingType seems to be 1 for CC updates, 2 for older CS suite updates
+    Note: These started showing up between when CS6 was released and when
+    the first suite of new Creative Cloud versions were released a year later.
+    They seem to be all essentially "point one" minor feature updates versions.
+
+    Originally, they seemed to be a limited set of updates for CS6 suite apps that
+    were only available to CC customers. These updates wouldn't be offered by RUM.
+    New CC products (ie. Photoshop 14) didn't have this TargetLicensingType.
+
+    However, a new set of CC updates released around late August/early
+    September 2013 have this property and will install with RUM.
+    At this point, we're skipping them but we need have another mechanism to
+    properly discern which can be installed.
+    """
+    new_updates = []
+    for update in updates:
+        details_url = urljoin(getURL('updates'), UPDATE_PATH_PREFIX) + \
+        '/%s/%s/%s.xml' % (update.product, update.version, update.version)
+        try:
+            channel_xml = urllib.urlopen(details_url)
+        except BaseException as e:
+            L.log(DEBUG, "Couldn't read details XML at %s" % details_url)
+            L.log(DEBUG, e)
+            continue
+
+        try:
+            details_xml = ET.fromstring(channel_xml.read())
+        except ET.ParseError as e:
+            L.log(DEBUG, "Couldn't parse XML: %s" % e)
+            continue
+
+        if skipTargetLicensingCC:
+            licensing_type_elem = details_xml.find('TargetLicensingType')
+            if licensing_type_elem is not None:
+                if licensing_type_elem.text == '1':
+                    L.log(DEBUG, "TargetLicensingType of %s found. This seems to be Creative Cloud updates. "
+                        "Skipping update." % licensing_type_elem.text)
+                    continue
+
+        if details_xml is not None:
+            new_update = UpdateMeta(
+                channel=update.channel,
+                product=update.product,
+                version=update.version,
+                revoked=update.revoked,
+                xml=details_xml)
+            new_updates.append(new_update)
+    return new_updates
+
+
 def updateIsRevoked(channel, product, version, parsed_feed):
     """Returns True if an update is considered revoked for a channel.
-    It seems that if a product is listed with REVOKE, it can still
-    be eligible if it appears _again_ after the REVOKE line. So we
-    take the result of the last entry for the update.
 
-    Ordered sample of entries from from AdobePremiereProCS6-6.0.0-Trial below.
-    Neither update is really revoked, and it seems to just takes the
-    highest-versioned update.
+    Deduced revocation logic:
 
+    An update can be listed multiple times, and both with and without
+    'REVOKE,[channel]' or 'REVOKE,ALL' lines. It seems an update is
+    only eligible if it has appeared _more times_ than a line with
+    REVOKE.
+
+    Therefore, to determine whether an update is REVOKE'd, we maintain a
+    counter and declare it revoked only if there are fewer REVOKE lines
+    than non-REVOKE lines.
+
+    A couple samples of feed entries, in order of appearance in the webfeed,
+    September 9, 2013, below.
+
+    AdobePremiereProCS6-6.0.0-Trial:
+    - when 6.0.2 was the most recent update being offered, it appeared three
+      times in the feed, but only once as REVOKE,ALL
+    - when it was surpassed by 6.0.3, a second REVOKE line was added
+
+    curl -s http://swupmf.adobe.com/webfeed/oobe/aam20/mac/updaterfeed.xml | grep AdobePremiereProCS6-6.0.0-Trial
+
+    <REVOKE,ALL,AdobePremiereProCS6-6.0.0-Trial,6.0.4>
+    <AdobePremiereProCS6-6.0.0-Trial,AdobePremiereProCS6-6.0.0-Trial,6.0.5>
+    <REVOKE,ALL,AdobePremiereProCS6-6.0.0-Trial,6.0.2>
+    <AdobePremiereProCS6-6.0.0-Trial,AdobePremiereProCS6-6.0.0-Trial,6.0.4>
     <AdobePremiereProCS6-6.0.0-Trial,AdobePremiereProCS6-6.0.0-Trial,6.0.2>
     <REVOKE,ALL,AdobePremiereProCS6-6.0.0-Trial,6.0.2>
+    <AdobePremiereProCS6-6.0.0-Trial,AdobeDynamicLinkMediaServer-1.0,1.0.1>
     <REVOKE,ALL,AdobePremiereProCS6-6.0.0-Trial,6.0.1>
     <AdobePremiereProCS6-6.0.0-Trial,AdobePremiereProCS6-6.0.0-Trial,6.0.2>
+    <COMBO,AdobePremiereProCS6-6.0.0-Trial,AdobePremiereProCS6-6.0.0-Trial,6.0.2,6.0.2,AdobePremiereProCS6LangPackde_DE-6.0.0,AdobePremiereProCS6LangPacken_US-6.0.0,AdobePremiereProCS6LangPackes_ES-6.0.0,AdobePremiereProCS6LangPackfr_FR-6.0.0,AdobePremiereProCS6LangPackit_IT-6.0.0,AdobePremiereProCS6LangPackja_JP-6.0.0,AdobePremiereProCS6LangPackko_KR-6.0.0>
+    <AdobePremiereProCS6-6.0.0-Trial,AdobeCSXSInfrastructureCS6-3,3.0.2>
     <AdobePremiereProCS6-6.0.0-Trial,AdobePremiereProCS6-6.0.0-Trial,6.0.1>
+    <COMBO,AdobePremiereProCS6-6.0.0-Trial,AdobePremiereProCS6-6.0.0-Trial,6.0.1,6.0.1,AdobePremiereProCS6LangPackde_DE-6.0.0,AdobePremiereProCS6LangPacken_US-6.0.0,AdobePremiereProCS6LangPackes_ES-6.0.0,AdobePremiereProCS6LangPackfr_FR-6.0.0,AdobePremiereProCS6LangPackit_IT-6.0.0,AdobePremiereProCS6LangPackja_JP-6.0.0,AdobePremiereProCS6LangPackko_KR-6.0.0>
+    <AdobePremiereProCS6-6.0.0-Trial,AdobeCSXSInfrastructureCS6-3,3.0.1>
+
+    PhotoshopCameraRaw764bit-7:
+
+    curl -s http://swupmf.adobe.com/webfeed/oobe/aam20/mac/updaterfeed.xml | grep PhotoshopCameraRaw764bit-7.0
+
+    <REVOKE,PhotoshopCameraRaw7-7.0,PhotoshopCameraRaw764bit-7.0,7.1.71>
+    <REVOKE,PhotoshopCameraRaw7-7.0,PhotoshopCameraRaw764bit-7.0,7.2.82>
+    <PhotoshopCameraRaw7-7.0,PhotoshopCameraRaw764bit-7.0,7.2.82>
+    <PhotoshopCameraRaw7-7.0,PhotoshopCameraRaw764bit-7.0,7.1.71>
 
     Some revoke-related strings from
     Adobe Application\ Manager/UWA/UpdaterCore.framework/Versions/A/UpdaterCore:
@@ -189,18 +278,28 @@ def updateIsRevoked(channel, product, version, parsed_feed):
     Revoke Update: Removing only this recommentation and not the whole update.
 
     """
-    revoked = False
+    revoke_count = 0
     for update in parsed_feed:
         if (update.product, update.version) == (product, version) \
             and update.channel in [channel, 'ALL']:
             if update.revoked == True:
-                revoked = True
+                L.log(DEBUG, "REVOKE counter +1")
+                revoke_count += 1
             else:
-                revoked = False
-    return revoked
+                L.log(DEBUG, "REVOKE counter -1")
+                revoke_count -= 1
+    if revoke_count > -1:
+        return True
+    else:
+        return False
 
 
 def getHighestVersionOfProduct(updates, product, include_revoked=False):
+    """Given a list of UpdateMeta tuples, return a string of the
+    highest detected version. We should be able to rely entirely on
+    the webfeed revoke logic and not use this, but this helps catch
+    at least one edge case: AdobeCSXSInfrastructureCS6_3
+    """
     from distutils.version import LooseVersion
 
     def compare_versions(a, b):
@@ -240,12 +339,12 @@ def buildProductPlist(esd_path, munki_update_for):
                     errorExit("Error: No ChannelIds could be retrieved from the Media_db!")
             else:
                 # fall back to old method of scraping proxy.xml, not compatible with CC products
-                print ("Warning: No Media_db.db file found to scrape ChannelIds, "
+                L.log(WARNING, "Warning: No Media_db.db file found to scrape ChannelIds, "
                       "falling back to using *.proxy.xml files.")
                 from glob import glob
                 proxies = glob(payload_dir + '/*/*.proxy.xml')
                 for proxy in proxies:
-                    print "Found %s" % os.path.basename(proxy)
+                    L.log(INFO, "Found %s" % os.path.basename(proxy))
                     pobj = ET.parse(proxy).getroot()
                     chan = pobj.find('Channel')
                     if chan is not None:
@@ -417,6 +516,7 @@ Can be specified multiple times.")
         if not channel_updates:
             L.log(DEBUG, "No updates for channel %s" % channelid)
             continue
+        channel_updates = addUpdatesXML(channel_updates)
 
         for update in channel_updates:
             L.log(VERBOSE, "Considering update %s, %s.." % (update.product, update.version))
@@ -432,43 +532,14 @@ Can be specified multiple times.")
                     L.log(DEBUG, "Update is revoked. Skipping update.")
                     continue
 
-            details_url = urljoin(getURL('updates'), UPDATE_PATH_PREFIX) + \
-                '/%s/%s/%s.xml' % (update.product, update.version, update.version)
-            try:
-                channel_xml = urllib.urlopen(details_url)
-            except BaseException as e:
-                L.log(DEBUG, "Couldn't read details XML at %s" % details_url)
-                L.log(DEBUG, e)
-                break
-
-            try:
-                details_xml = ET.fromstring(channel_xml.read())
-            except ET.ParseError as e:
-                L.log(DEBUG, "Couldn't parse XML: %s" % e)
-                break
-
-            if details_xml is not None:
-                licensing_type_elem = details_xml.find('TargetLicensingType')
-                if licensing_type_elem is not None:
-                    licensing_type_elem = licensing_type_elem.text
-                    # TargetLicensingType seems to be 1 for CC updates, 2 for "regular" updates
-                    # Note: these seem to have existed only between when CS6 was released and when
-                    # the first suite of new Creative Cloud versions were released a year later.
-                    # They are all essentially "point one" minor feature updates to the CS6 major
-                    # versions.
-                    if licensing_type_elem == '1':
-                        L.log(DEBUG, "TargetLicensingType of %s found. This seems to be Creative Cloud updates. "
-                            "Skipping update." % licensing_type_elem)
-                        break
-
-                file_element = details_xml.find('InstallFiles/File')
+                file_element = update.xml.find('InstallFiles/File')
                 if file_element is None:
                     L.log(DEBUG, "No File XML element found. Skipping update.")
                 else:
                     filename = file_element.find('Name').text
                     bytes = file_element.find('Size').text
-                    description = details_xml.find('Description/en_US').text
-                    display_name = details_xml.find('DisplayName/en_US').text
+                    description = update.xml.find('Description/en_US').text
+                    display_name = update.xml.find('DisplayName/en_US').text
 
                     if not update.product in updates.keys():
                         updates[update.product] = {}
