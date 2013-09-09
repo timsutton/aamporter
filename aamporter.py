@@ -19,6 +19,7 @@ from xml.etree import ElementTree as ET
 import optparse
 import subprocess
 import sqlite3
+import logging
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 DEFAULT_PREFS = {
@@ -34,10 +35,47 @@ supported_settings_keys.append('aam_server_baseurl')
 UpdateMeta = namedtuple('update', ['channel', 'product', 'version', 'revoked'])
 UPDATE_PATH_PREFIX = 'updates/oobe/aam20/mac'
 MUNKI_DIR = '/usr/local/munki'
+ERROR = 50
+WARNING = 40
+INFO = 30
+VERBOSE = 20
+DEBUG = 10
+
+
+class ColorFormatter(logging.Formatter):
+    # http://ascii-table.com/ansi-escape-sequences.php
+    BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
+    RESET_SEQ = "\033[0m"
+    COLOR_SEQ = "\033[0;%dm"
+    COLORS = {'DEBUG': MAGENTA,
+              'VERBOSE': GREEN,
+              'INFO': BLUE,
+              'WARNING': YELLOW,
+              'ERROR': RED}
+    LEVELS = {10: 'DEBUG', 20: 'VERBOSE', 30: 'INFO', 40: 'WARNING', 50: 'ERROR'}
+
+    def __init__(self, use_color=True, fmt="%(message)s"):
+        logging.Formatter.__init__(self)
+        self.use_color = use_color
+
+    def format(self, record):
+        # Code to prepend level name to log message
+        # if record.levelno != 40:
+        #     message = "%s: %s" % (self.LEVELS[record.levelno], record.getMessage())
+        # else:
+        #     message = record.getMessage()
+        # record.message = message
+        record.message = record.getMessage()
+        s = self._fmt % record.__dict__
+        if self.use_color:
+            if record.levelno != 30:
+                color = 30 + self.COLORS[self.LEVELS[record.levelno]]
+                s = self.COLOR_SEQ % color + s + self.RESET_SEQ
+        return s
 
 
 def errorExit(err_string, err_code=1):
-    print err_string
+    L.log(ERROR, err_string)
     sys.exit(err_code)
 
 
@@ -65,7 +103,13 @@ def getURL(type='updates'):
 
 
 def getFeedData():
-    opener = urllib.urlopen(urljoin(getURL(type='webfeed'), 'webfeed/oobe/aam20/mac/updaterfeed.xml'))
+    url = urljoin(getURL(type='webfeed'), 'webfeed/oobe/aam20/mac/updaterfeed.xml')
+    try:
+        opener = urllib.urlopen(url)
+    except BaseException as e:
+        L.log(ERROR, "Error reading feed data from URL: %s" % url)
+        errorExit(e)
+
     xml = opener.read()
     opener.close()
     search = re.compile("<(.+?)>")
@@ -86,6 +130,8 @@ def parseFeedData(feed_list):
                 revoked = False
             else:
                 revoked = True
+            L.log(DEBUG, "Parsed: Channel: {0}, Product: {1}, Version: {2}, Revoked: {3}".format(
+                chan, prod, ver, revoked))
             updates.append(UpdateMeta(channel=chan, product=prod, version=ver, revoked=revoked))
     return updates
 
@@ -240,9 +286,24 @@ Can be specified multiple times.")
         help="Given a path to a mounted Adobe product ESD installer, save a containing every Channel ID found for the product.")
     o.add_option("-u", "--munki-update-for", action="store",
         help="To be used with the --build-product-plist option, specifies the base Munki product.")
+    o.add_option("-v", "--verbose", action="count", default=0,
+        help="Output verbosity. Can be specified either '-v' or '-vv'.")
+    o.add_option("--no-colors", action="store_true", default=False,
+        help="Disable colored ANSI output.")
 
     opts, args = o.parse_args()
 
+    # setup logging
+    global L
+    L = logging.getLogger('com.github.aamporter')
+    log_stdout_handler = logging.StreamHandler(stream=sys.stdout)
+    log_stdout_handler.setFormatter(ColorFormatter(
+        use_color=not opts.no_colors))
+    L.addHandler(log_stdout_handler)
+    # INFO is level 30, so each verbose option count lowers level by 10
+    L.setLevel(INFO - (10 * opts.verbose))
+
+    # arg/opt processing
     if len(sys.argv) == 1:
         o.print_usage()
         sys.exit(0)
@@ -332,46 +393,58 @@ Can be specified multiple times.")
             if k not in supported_settings_keys:
                 print "Warning: Unknown setting in %s: %s" % (os.path.basename(settings_plist), k)
 
+    L.log(INFO, "Starting aamporter run..")
+    if opts.munkiimport:
+        L.log(INFO, "Will import into Munki (--munkiimport option given).")
+
+    L.log(DEBUG, "aamporter preferences:")
+    for key in supported_settings_keys:
+        L.log(DEBUG, " - {0}: {1}".format(key, pref(key)))
+
     # pull feed info and populate channels
+    L.log(INFO, "Retrieving feed data..")
     feed = getFeedData()
     parsed = parseFeedData(feed)
     channels = getChannelsFromProductPlists(product_plists)
+    L.log(INFO, "Processing the following Channel IDs:")
+    [ L.log(INFO, "  - %s" % channel) for channel in sorted(channels) ]
 
     # begin caching run and build updates dictionary with product/version info
     updates = {}
     for channelid in channels.keys():
-        print "Channel %s" % channelid
+        L.log(VERBOSE, "Getting updates for Channel ID %s.." % channelid)
         channel_updates = getUpdatesForChannel(channelid, parsed)
         if not channel_updates:
-            print "No updates for channel %s" % channelid
+            L.log(DEBUG, "No updates for channel %s" % channelid)
             continue
 
         for update in channel_updates:
-            print "Update %s, %s..." % (update.product, update.version)
+            L.log(VERBOSE, "Considering update %s, %s.." % (update.product, update.version))
 
             if opts.include_revoked is False:
                 highest_version = getHighestVersionOfProduct(channel_updates, update.product)
                 if update.version != highest_version:
-                    print "%s is not the highest version available (%s) for this update. Skipping.." % (
-                        update.version, highest_version)
+                    L.log(DEBUG, "%s is not the highest version available (%s) for this update. Skipping.." % (
+                        update.version, highest_version))
                     continue
 
                 if updateIsRevoked(update.channel, update.product, update.version, parsed):
-                    print "Update is revoked. Skipping update."
+                    L.log(DEBUG, "Update is revoked. Skipping update.")
                     continue
 
             details_url = urljoin(getURL('updates'), UPDATE_PATH_PREFIX) + \
                 '/%s/%s/%s.xml' % (update.product, update.version, update.version)
             try:
                 channel_xml = urllib.urlopen(details_url)
-            except:
-                print "Couldn't read details XML at %s" % details_url
+            except BaseException as e:
+                L.log(DEBUG, "Couldn't read details XML at %s" % details_url)
+                L.log(DEBUG, e)
                 break
 
             try:
                 details_xml = ET.fromstring(channel_xml.read())
-            except ET.ParseError:
-                print "Couldn't parse XML."
+            except ET.ParseError as e:
+                L.log(DEBUG, "Couldn't parse XML: %s" % e)
                 break
 
             if details_xml is not None:
@@ -379,13 +452,18 @@ Can be specified multiple times.")
                 if licensing_type_elem is not None:
                     licensing_type_elem = licensing_type_elem.text
                     # TargetLicensingType seems to be 1 for CC updates, 2 for "regular" updates
+                    # Note: these seem to have existed only between when CS6 was released and when
+                    # the first suite of new Creative Cloud versions were released a year later.
+                    # They are all essentially "point one" minor feature updates to the CS6 major
+                    # versions.
                     if licensing_type_elem == '1':
-                        print "TargetLicensingType of %s found. This seems to be Creative Cloud updates. Skipping update." % licensing_type_elem
+                        L.log(DEBUG, "TargetLicensingType of %s found. This seems to be Creative Cloud updates. "
+                            "Skipping update." % licensing_type_elem)
                         break
 
                 file_element = details_xml.find('InstallFiles/File')
                 if file_element is None:
-                    print "No File XML element found. Skipping update."
+                    L.log(DEBUG, "No File XML element found. Skipping update.")
                 else:
                     filename = file_element.find('Name').text
                     bytes = file_element.find('Size').text
@@ -413,18 +491,20 @@ Can be specified multiple times.")
                     if os.path.exists(output_filename):
                         we_have_bytes = os.stat(output_filename).st_size
                         if we_have_bytes == int(bytes):
-                            print "Skipping download of %s, we already have it." % update.product
+                            L.log(INFO, "Skipping download of %s %s, it is already cached." 
+                                % (update.product, update.version))
                             need_to_dl = False
                         else:
-                            print "Incomplete download (%s bytes on disk, should be %s), re-starting." % (
-                                we_have_bytes, bytes)
+                            L.log(VERBOSE, "Incomplete download (%s bytes on disk, should be %s), re-starting." % (
+                                we_have_bytes, bytes))
                     if need_to_dl:
-                        print "Downloading update at %s" % dmg_url
+                        L.log(INFO, "Downloading update at %s" % dmg_url)
                         urllib.urlretrieve(dmg_url, output_filename)
-    print "Done caching updates."
+    L.log(INFO, "Done caching updates.")
 
     # begin munkiimport run
     if opts.munkiimport:
+        L.log(INFO, "Beginning Munki imports..")
         for (update_name, update_meta) in updates.items():
             for (version_name, version_meta) in update_meta.items():
                 need_to_import = True
@@ -437,21 +517,22 @@ Can be specified multiple times.")
                                             version_meta['local_path']],
                                             False)
                     # Cribbed from munkiimport
-                    print "Looking for a matching pkginfo for %s %s.." % (
-                        item_name, version_name)
+                    L.log(VERBOSE, "Looking for a matching pkginfo for %s %s.." % (
+                        item_name, version_name))
                     matchingpkginfo = munkiimport.findMatchingPkginfo(pkginfo)
                     if matchingpkginfo:
-                        print "Got a matching pkginfo."
+                        L.log(VERBOSE, "Got a matching pkginfo.")
                         if ('installer_item_hash' in matchingpkginfo and
                             matchingpkginfo['installer_item_hash'] ==
                             pkginfo.get('installer_item_hash')):
                             need_to_import = False
-                            print "We already have an exact match in the repo. Skipping import."
+                            L.log(INFO,
+                                ("We have an exact match for %s %s in the repo. Skipping.." % (
+                                    item_name, version_name)))
                     else:
                         need_to_import = True
 
                 if need_to_import:
-                    print "Importing %s into munki." % item_name
                     munkiimport_opts = pref('munkiimport_options')[:]
                     if pref("munki_tool") == 'munkiimport':
                         if 'munki_repo_destination_path' in version_meta.keys():
@@ -460,14 +541,16 @@ Can be specified multiple times.")
                             subdir = pref('munki_repo_destination_path')
                         munkiimport_opts.append('--subdirectory')
                         munkiimport_opts.append(subdir)
-                    if not 'munki_update_for' in version_meta.keys():
-                        print "Warning: %s does not have an update_for key specified!"
+                    if not version_meta['munki_update_for']:
+                        L.log(WARNING,
+                            "Warning: {0} does not have an 'update_for' key "
+                            "specified in the product plist!".format(item_name))
+                        update_catalogs = []
                     else:
                         # handle case of munki_update_for being either a list or a string
                         flatten = lambda *n: (e for a in n
                             for e in (flatten(*a) if isinstance(a, (tuple, list)) else (a,)))
                         update_catalogs = list(flatten(version_meta['munki_update_for']))
-                        print "Applicable base products for Munki: %s" % ', '.join(update_catalogs)
                         for base_product in update_catalogs:
                             munkiimport_opts.append('--update_for')
                             munkiimport_opts.append(base_product)
@@ -485,29 +568,36 @@ Can be specified multiple times.")
                     elif pref('munki_tool') == 'makepkginfo':
                         import_cmd = ['/usr/local/munki/makepkginfo']
                     else:
-                        print "Not sure what tool you wanted to use; munki_tool should be 'munkiimport' " + \
-                        "or 'makepkginfo' but we got '%s'.  Skipping import." % (pref('munki_tool'))
+                        # TODO: validate this pref earlier
+                        L.log(ERROR, "Not sure what tool you wanted to use; munki_tool should be 'munkiimport' " + \
+                        "or 'makepkginfo' but we got '%s'.  Skipping import." % (pref('munki_tool')))
                         break
                     # Load our app munkiimport options overrides last
                     import_cmd += munkiimport_opts
                     import_cmd.append(version_meta['local_path'])
-                    print "Calling %s on %s version %s, file %s." % (
-                        pref('munki_tool'), update_name, version_name, version_meta['local_path'])
+
+                    L.log(INFO, "Importing {0} {1} into Munki. Update for: {2}".format(
+                        item_name, version_name, ', '.join(update_catalogs)))
+                    L.log(VERBOSE, "Calling %s on %s version %s, file %s." % (
+                        pref('munki_tool'),
+                        update_name,
+                        version_name,
+                        version_meta['local_path']))
                     munkiprocess = subprocess.Popen(import_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     # wait for the process to terminate
                     stdout, stderr = munkiprocess.communicate()
                     import_retcode = munkiprocess.returncode
                     if import_retcode:
-                        print "munkiimport returned an error. Skipping update.."
+                        L.log(ERROR, "munkiimport returned an error. Skipping update..")
                     else:
                         if pref('munki_tool') == 'makepkginfo':
                             plist_path = os.path.splitext(version_meta['local_path'])[0] + ".plist"
                             with open(plist_path, "w") as plist:
                                 plist.write(stdout)
-                                print "pkginfo written to %s" % plist_path
+                                L.log(INFO, "pkginfo written to %s" % plist_path)
 
 
-        print "Done importing into Munki."
+        L.log(INFO, "Done Munki imports.")
         if opts.make_catalogs:
             munkiimport.makeCatalogs()
 
