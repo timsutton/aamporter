@@ -55,13 +55,15 @@ It's possible this may miss some obscure update that an automatically-generated 
 
 ### Revoked updates
 
-Adobe retains some old updates in its feed, marking them as revoked. By default, aamporter will not fetch and import these, but this can be overrided with the `--include-revoked` option. CS updates are almost always cumulative patches, and CS apps are not easily reverted to previous versions (instead requiring a full uninstall/reinstall), but there may particular scenarios for some environments where it's useful to have the earlier versions of updates available.
+Adobe retains some old updates in its feed, marking them as revoked. By default, aamporter will not fetch and import these, but this can be overrided with the `--include-revoked` option. CS updates seem to be always cumulative patches, and CS apps are not easily reverted to previous versions (instead requiring a full uninstall/reinstall), but you may want to collect previous versions if there are issues with installing the latest updates.
 
-### Creative Cloud
+### Creative Cloud updates
 
-There was a brief period after CS6's release when some CS6-era products received updates only available to Creative Cloud customers (for example, DreamWeaver 12.1 and higher). These updates weren't designed to be deployed to managed clients, and so aamporter skips them.
+The `--build-product-plist` option can also be used against a CC application installer ESD in the same manner as CS-era products. However, currently aamporter does not fetch every single CC update available.
 
-As of June/July 2013, all CC application updates seem to be identified the same as those from CS6 and earlier, and can be retrieved and installed in the same manner. The `--build-product-plist` option can also be used against a CC application installer ESD.
+There was period after CS6's release when some CS6-era products received updates only available to Creative Cloud customers - Illustrator and DreamWeaver got point-one updates that would not be installed by running [RemoteUpdateManager](http://helpx.adobe.com/creative-cloud/packager/using-remote-update-manager.html). These are mostly all branded with the `FEATURE` descriptor in the metadata feed, and seem to use a metadata element, `TargetLicensingType`, with a value of `1` to identify a CC update.
+
+When the first CC application patch updates were released in June 2013, they did _not_ specify this CC-related metadata, but the Photoshop 14.1 update released in September 2013 _does_, and RemoteUpdateManager will still install these. So, more work must be done to determine how these updates are discerned by RemoteUpdateManager.
 
 ## Caveats<a name="caveats"></a>
 
