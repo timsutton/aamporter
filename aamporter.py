@@ -319,39 +319,64 @@ def getHighestVersionOfProduct(updates, product, include_revoked=False):
         return None
 
 
-def buildProductPlist(esd_path, munki_update_for):
+def buildProductPlist(path, munki_update_for):
     plist = {}
-    for root, dirs, files in os.walk(esd_path):
-        if 'payloads' in dirs and 'Install.app' in dirs:
-            payload_dir = os.path.join(root, 'payloads')
-            channels = []
+    channels = []
 
-            media_db_path = os.path.join(payload_dir, 'Media_db.db')
-            if os.path.exists(media_db_path):
-                conn = sqlite3.connect(media_db_path)
-                c = conn.cursor()
-                c.execute("""SELECT value from PayloadData where PayloadData.key = 'ChannelID'""")
-                result = c.fetchall()
-                c.close()
-                if result:
-                    channels = [i[0] for i in result]
+    # If we were given a mounted installer ESD path..
+    if os.path.isdir(path):
+        for root, dirs, files in os.walk(path):
+            if 'payloads' in dirs and 'Install.app' in dirs:
+                payload_dir = os.path.join(root, 'payloads')
+
+                media_db_path = os.path.join(payload_dir, 'Media_db.db')
+                if os.path.exists(media_db_path):
+                    conn = sqlite3.connect(media_db_path)
+                    c = conn.cursor()
+                    c.execute("""SELECT value from PayloadData where PayloadData.key = 'ChannelID'""")
+                    result = c.fetchall()
+                    c.close()
+                    if result:
+                        channels = [i[0] for i in result]
+                    else:
+                        errorExit("Error: No ChannelIds could be retrieved from the Media_db!")
                 else:
-                    errorExit("Error: No ChannelIds could be retrieved from the Media_db!")
-            else:
-                # fall back to old method of scraping proxy.xml, not compatible with CC products
-                L.log(WARNING, "Warning: No Media_db.db file found to scrape ChannelIds, "
-                      "falling back to using *.proxy.xml files.")
-                from glob import glob
-                proxies = glob(payload_dir + '/*/*.proxy.xml')
-                for proxy in proxies:
-                    L.log(INFO, "Found %s" % os.path.basename(proxy))
-                    pobj = ET.parse(proxy).getroot()
-                    chan = pobj.find('Channel')
-                    if chan is not None:
-                        channels.append(chan.get('id'))
-            plist['channels'] = channels
-            if munki_update_for:
-                plist['munki_update_for'] = munki_update_for
+                    # fall back to old method of scraping proxy.xml, not compatible with CC products
+                    L.log(WARNING, "Warning: No Media_db.db file found to scrape ChannelIds, "
+                          "falling back to using *.proxy.xml files.")
+                    from glob import glob
+                    proxies = glob(payload_dir + '/*/*.proxy.xml')
+                    for proxy in proxies:
+                        L.log(INFO, "Found %s" % os.path.basename(proxy))
+                        pobj = ET.parse(proxy).getroot()
+                        chan = pobj.find('Channel')
+                        if chan is not None:
+                            channels.append(chan.get('id'))
+
+    # or a .ccp file built with CCP?
+    elif path.endswith('.ccp'):
+        id_set = set()
+        try:
+            xml = ET.parse(path)
+        except ET.ParseError:
+            errorExit("Couldn't parse XML .ccp file at %s" % path)
+        package_info = xml.getroot()
+        medias = package_info.find('PackageHistories/PackagingHistory/InstallInfo/Medias')
+        media_list = medias.findall('Media')
+        for media in media_list:
+            channel_id_list = media.find('ProdChannelIDList')
+            if channel_id_list is not None:
+                for elem in channel_id_list:
+                    id_set.add(elem.text)
+        channels = list(id_set)
+
+    else:
+        errorExit("No compatible installer item could be found! See the usage for valid input installer types.")
+
+    plist['channels'] = channels
+    if munki_update_for:
+        plist['munki_update_for'] = munki_update_for
+
     return plist
 
 
@@ -382,7 +407,8 @@ See %prog --help for more options and the README for more detail."""
         help="Path to an Adobe product plist, for example as generated using the --build-product-plist option. \
 Can be specified multiple times.")
     o.add_option("-b", "--build-product-plist", action="store",
-        help="Given a path to a mounted Adobe product ESD installer, save a product plist containing every Channel ID found for the product.")
+        help="Given a path to either a mounted Adobe product ESD installer or a .ccp file from a package built with CCP, \
+save a product plist containing every Channel ID found for the product.")
     o.add_option("-u", "--munki-update-for", action="store",
         help="To be used with the --build-product-plist option, specifies the base Munki product.")
     o.add_option("-v", "--verbose", action="count", default=0,
