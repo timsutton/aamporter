@@ -8,19 +8,19 @@
 #
 # See README.md for more information.
 
+import logging
+import optparse
 import os
-import sys
-import urllib
-from urlparse import urljoin
 import plistlib
 import re
-from collections import namedtuple
-from xml.etree import ElementTree as ET
-import optparse
-import subprocess
 import sqlite3
-import logging
+import subprocess
+import sys
+import urllib
 
+from collections import namedtuple
+from urlparse import urljoin
+from xml.etree import ElementTree as ET
 SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 DEFAULT_PREFS = {
     'munki_pkginfo_name_suffix': '_Update',
