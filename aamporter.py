@@ -21,6 +21,8 @@ import urllib
 from collections import namedtuple
 from urlparse import urljoin
 from xml.etree import ElementTree as ET
+from xml.parsers.expat import ExpatError
+
 SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 DEFAULT_PREFS = {
     'munki_pkginfo_name_suffix': '_Update',
@@ -82,7 +84,13 @@ def errorExit(err_string, err_code=1):
 def pref(name):
     p = {}
     if os.path.exists(settings_plist):
-        p = plistlib.readPlist(settings_plist)
+        try:
+            p = plistlib.readPlist(settings_plist)
+        except ExpatError:
+            errorExit(
+                "Settings plist found at %s, but it could not be parsed!"
+                % settings_plist)
+            
     if name in DEFAULT_PREFS.keys() and not name in p.keys():
         value = DEFAULT_PREFS[name]
     elif name in p.keys():
