@@ -407,6 +407,9 @@ See %prog --help for more options and the README for more detail."""
         help="Process downloaded updates with munkiimport using options defined in %s." % os.path.basename(settings_plist))
     o.add_option("-r", "--include-revoked", action="store_true", default=False,
         help="Include updates that have been marked as revoked in Adobe's feed XML.")
+    o.add_option("--skip-cc", action="store_true", default=False,
+        help=("Skip updates for Creative Cloud updates. Useful for certain updates for "
+              "CS-era applications that incorporate CC subscription updates."))
     o.add_option("-f", "--force-import", action="store_true", default=False,
         help="Run munkiimport even if it finds an identical pkginfo and installer_item_hash in the repo.")
     o.add_option("-c", "--make-catalogs", action="store_true", default=False,
@@ -550,7 +553,7 @@ save a product plist containing every Channel ID found for the product.")
         if not channel_updates:
             L.log(DEBUG, "No updates for channel %s" % channelid)
             continue
-        channel_updates = addUpdatesXML(channel_updates)
+        channel_updates = addUpdatesXML(channel_updates, skipTargetLicensingCC=opts.skip_cc)
 
         for update in channel_updates:
             L.log(VERBOSE, "Considering update %s, %s.." % (update.product, update.version))
