@@ -462,6 +462,9 @@ save a product plist containing every Channel ID found for the product. Plist is
                 output_plist_name = os.path.basename(esd_path.replace(' ', ''))
             output_plist_name += '.plist'
             output_plist_file = os.path.join(os.getcwd(), output_plist_name)
+            if os.path.exists(output_plist_file):
+                errorExit("A file already exists at %s, not going to overwrite." %
+                    output_plist_file)
             try:
                 plistlib.writePlist(plist, output_plist_file)
             except:
