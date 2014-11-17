@@ -419,7 +419,7 @@ See %prog --help for more options and the README for more detail."""
 Can be specified multiple times.")
     o.add_option("-b", "--build-product-plist", action="store",
         help="Given a path to either a mounted Adobe product ESD installer or a .ccp file from a package built with CCP, \
-save a product plist containing every Channel ID found for the product.")
+save a product plist containing every Channel ID found for the product. Plist is saved to the current working directory.")
     o.add_option("-u", "--munki-update-for", action="store",
         help="To be used with the --build-product-plist option, specifies the base Munki product.")
     o.add_option("-v", "--verbose", action="count", default=0,
@@ -461,7 +461,7 @@ save a product plist containing every Channel ID found for the product.")
             else:
                 output_plist_name = os.path.basename(esd_path.replace(' ', ''))
             output_plist_name += '.plist'
-            output_plist_file = os.path.join(SCRIPT_DIR, output_plist_name)
+            output_plist_file = os.path.join(os.getcwd(), output_plist_name)
             try:
                 plistlib.writePlist(plist, output_plist_file)
             except:
