@@ -376,7 +376,7 @@ def buildProductPlist(path, munki_update_for):
             if channel_id_list is not None:
                 for elem in channel_id_list:
                     id_set.add(elem.text)
-        channels = list(id_set)
+        channels = sorted(list(id_set))
 
     else:
         errorExit("No compatible installer item could be found! See the usage for valid input installer types.")
