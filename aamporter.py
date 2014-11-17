@@ -105,9 +105,9 @@ def getURL(type='updates'):
         return pref('aam_server_baseurl')
     else:
         if type == 'updates':
-            return 'http://swupdl.adobe.com'
+            return 'https://swupdl.adobe.com'
         elif type == 'webfeed':
-            return 'http://swupmf.adobe.com'
+            return 'https://swupmf.adobe.com'
 
 
 def getFeedData():
