@@ -65,6 +65,10 @@ There was period after CS6's release when some CS6-era products received updates
 
 When the first CC application patch updates were released in June 2013, they did _not_ specify this CC-related metadata, but the Photoshop 14.1 update released in September 2013 _does_, and RemoteUpdateManager will still install these. So, more work must be done to determine how these updates are discerned by RemoteUpdateManager.
 
+### Bonus: Importing CCP packages into Munki
+
+Since Creative Cloud doesn't really have the notion of a "suite" of apps, you may have a large number of individual CC application installers built using Creative Cloud Packager. Since the process of importing these all into Munki is time-consuming, I wrote a short script to automate this process, which I included in this repo [here](https://github.com/timsutton/aamporter/tree/master/scripts/munkiimport_cc_installers.py).
+
 ## Caveats<a name="caveats"></a>
 
 ### Product plists are your responsibility
