@@ -51,7 +51,8 @@ if len(sys.argv) < 2:
 PKGS_DIR = sys.argv[1]
 PKGS_DIR = os.path.abspath(PKGS_DIR)
 
-for product in os.listdir(PKGS_DIR):
+for product_dirname in os.listdir(PKGS_DIR):
+    product = os.path.join(PKGS_DIR, product_dirname)
     if not os.path.isdir(product):
         continue
     install_pkg_path = glob(os.path.join(product, "Build/*Install.pkg"))[0]
