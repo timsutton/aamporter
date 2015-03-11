@@ -55,8 +55,14 @@ for product_dirname in os.listdir(PKGS_DIR):
     product = os.path.join(PKGS_DIR, product_dirname)
     if not os.path.isdir(product):
         continue
-    install_pkg_path = glob(os.path.join(product, "Build/*Install.pkg"))[0]
-    uninstall_pkg_path = glob(os.path.join(product, "Build/*Uninstall.pkg"))[0]
+    install_pkg_path_glob = glob(os.path.join(product, "Build/*Install.pkg"))
+    uninstall_pkg_path_glob = glob(os.path.join(product, "Build/*Uninstall.pkg"))
+    if not install_pkg_path_glob or not uninstall_pkg_path_glob:
+        print >> sys.stderr, ("'%s' doesn't look like a CCP package, skipping"
+                              % product)
+        continue
+    install_pkg_path = install_pkg_path_glob[0]
+    uninstall_pkg_path = uninstall_pkg_path_glob[0]
     cmd = [
         "/usr/local/munki/munkiimport",
         "--nointeractive",
