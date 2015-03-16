@@ -31,6 +31,10 @@ Once a run is complete and new items have been imported, catalogs will not be re
 
 Some organizations can't use `munkiimport` and need to use `makepkginfo` instead.  You can have aamporter call `makepkginfo` by setting `munki_tool` to `makepkginfo` in the `aamporter.plist` file.
 
+#### More documentation for Munki
+
+[Nick McSpadden](https://twitter.com/mrnickmcspadden) has done a [comprehensive writeup on the Munki Wiki](https://github.com/munki/munki/wiki/Munki%20And%20Adobe%20CC) on importing Adobe Creative Cloud installers and updates into Munki, covering aamporter.
+
 ### Generating product plists
 
 The `--build-product-plist` option will generate a product plist automatically, using all Channel IDs found at the path of an Adobe ESD installer:
