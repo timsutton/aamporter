@@ -35,7 +35,7 @@ settings_plist = os.path.join(SCRIPT_DIR, 'aamporter.plist')
 supported_settings_keys = DEFAULT_PREFS.keys()
 supported_settings_keys.append('aam_server_baseurl')
 UpdateMeta = namedtuple('update', ['channel', 'product', 'version', 'revoked', 'xml'])
-UPDATE_PATH_PREFIX = 'updates/oobe/aam20/mac'
+UPDATE_PATH_PREFIX = 'updates/oobe/aam20/'
 MUNKI_DIR = '/usr/local/munki'
 ERROR = 50
 WARNING = 40
@@ -110,8 +110,8 @@ def getURL(type='updates'):
             return 'https://swupmf.adobe.com'
 
 
-def getFeedData():
-    url = urljoin(getURL(type='webfeed'), 'webfeed/oobe/aam20/mac/updaterfeed.xml')
+def getFeedData(platform):
+    url = urljoin(getURL(type='webfeed'), 'webfeed/oobe/aam20/%s/updaterfeed.xml' % platform)
     try:
         opener = urllib.urlopen(url)
     except BaseException as e:
@@ -170,7 +170,7 @@ def getUpdatesForChannel(channel_id, parsed_feed):
     return updates
 
 
-def addUpdatesXML(updates, skipTargetLicensingCC=True):
+def addUpdatesXML(updates, platform, skipTargetLicensingCC=True):
     """Takes a list of UpdateMeta objects and adds an ElementTree object
     with the root of the contents of the update's metadata XML.
 
@@ -193,7 +193,7 @@ def addUpdatesXML(updates, skipTargetLicensingCC=True):
     """
     new_updates = []
     for update in updates:
-        details_url = urljoin(getURL('updates'), UPDATE_PATH_PREFIX) + \
+        details_url = urljoin(getURL('updates'), UPDATE_PATH_PREFIX + platform) + \
         '/%s/%s/%s.xml' % (update.product, update.version, update.version)
         try:
             channel_xml = urllib.urlopen(details_url)
@@ -387,6 +387,19 @@ def buildProductPlist(path, munki_update_for):
 
     return plist
 
+# http://stackoverflow.com/a/13895723/2626090
+def reporthook(blocknum, blocksize, totalsize):
+    readsofar = blocknum * blocksize
+    if totalsize > 0:
+        percent = readsofar * 1e2 / totalsize
+        s = "\r%5.1f%% %*d / %d" % (
+            percent, len(str(totalsize)), readsofar, totalsize)
+        sys.stderr.write(s)
+        if readsofar >= totalsize: # near the end
+            sys.stderr.write("\n")
+    else: # total size is unknown
+        sys.stderr.write("read %d\n" % (readsofar,))
+
 
 def main():
     usage = """
@@ -426,6 +439,8 @@ save a product plist containing every Channel ID found for the product. Plist is
         help="Output verbosity. Can be specified either '-v' or '-vv'.")
     o.add_option("--no-colors", action="store_true", default=False,
         help="Disable colored ANSI output.")
+    o.add_option("--platform", type='choice', choices=['mac', 'win'], default='mac',
+        help="Available options are 'mac' or 'win'.")
 
     opts, args = o.parse_args()
 
@@ -542,7 +557,7 @@ save a product plist containing every Channel ID found for the product. Plist is
 
     # pull feed info and populate channels
     L.log(INFO, "Retrieving feed data..")
-    feed = getFeedData()
+    feed = getFeedData(opts.platform)
     parsed = parseFeedData(feed)
     channels = getChannelsFromProductPlists(product_plists)
     L.log(INFO, "Processing the following Channel IDs:")
@@ -556,7 +571,7 @@ save a product plist containing every Channel ID found for the product. Plist is
         if not channel_updates:
             L.log(DEBUG, "No updates for channel %s" % channelid)
             continue
-        channel_updates = addUpdatesXML(channel_updates, skipTargetLicensingCC=opts.skip_cc)
+        channel_updates = addUpdatesXML(channel_updates, opts.platform, skipTargetLicensingCC=opts.skip_cc)
 
         for update in channel_updates:
             L.log(VERBOSE, "Considering update %s, %s.." % (update.product, update.version))
@@ -593,10 +608,10 @@ save a product plist containing every Channel ID found for the product. Plist is
                             updates[update.product][update.version][opt] = channels[update.channel][opt]
                     updates[update.product][update.version]['description'] = description
                     updates[update.product][update.version]['display_name'] = display_name
-                    dmg_url = urljoin(getURL('updates'), UPDATE_PATH_PREFIX) + \
+                    dmg_url = urljoin(getURL('updates'), UPDATE_PATH_PREFIX + opts.platform) + \
                             '/%s/%s/%s' % (update.product, update.version, filename)
-                    output_filename = os.path.join(local_cache_path, "%s-%s.dmg" % (
-                            update.product, update.version))
+                    output_filename = os.path.join(local_cache_path, "%s-%s.%s" % (
+                            update.product, update.version, 'dmg' if opts.platform == 'mac' else 'zip'))
                     updates[update.product][update.version]['local_path'] = output_filename
                     need_to_dl = True
                     if os.path.exists(output_filename):
@@ -609,8 +624,9 @@ save a product plist containing every Channel ID found for the product. Plist is
                             L.log(VERBOSE, "Incomplete download (%s bytes on disk, should be %s), re-starting." % (
                                 we_have_bytes, bytes))
                     if need_to_dl:
-                        L.log(INFO, "Downloading update at %s" % dmg_url)
-                        urllib.urlretrieve(dmg_url, output_filename)
+                        L.log(INFO, "Downloading %s %s (%s bytes) to %s" % (update.product, update.version, bytes, output_filename))
+                        urllib.urlretrieve(dmg_url, output_filename, reporthook)
+                        
     L.log(INFO, "Done caching updates.")
 
     # begin munkiimport run
