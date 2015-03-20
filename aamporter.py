@@ -17,6 +17,7 @@ import sqlite3
 import subprocess
 import sys
 import urllib
+import zipfile
 
 from collections import namedtuple
 from urlparse import urljoin
@@ -363,6 +364,13 @@ def buildProductPlist(path, munki_update_for):
 
     # or a .ccp file built with CCP?
     elif path.endswith('.ccp'):
+        if zipfile.is_zipfile(path):
+            with zipfile.ZipFile(path, 'r') as ccp_zip:
+                try:
+                    path = ccp_zip.open('PkgConfig.xml', 'r')
+                except KeyError:
+                    errorExit("Couldn't open XML .ccp file at %s/PkgConfig.xml" % path)
+
         id_set = set()
         try:
             xml = ET.parse(path)
@@ -416,6 +424,8 @@ for the product whose ESD installer volume is mounted at the path.
 See %prog --help for more options and the README for more detail."""
 
     o = optparse.OptionParser(usage=usage)
+    o.add_option("-l", "--platform", type='choice', choices=['mac', 'win'], default='mac',
+        help="Download Adobe updates for Mac or Windows. Available options are 'mac' or 'win', defaults to 'mac'.")
     o.add_option("-m", "--munkiimport", action="store_true", default=False,
         help="Process downloaded updates with munkiimport using options defined in %s." % os.path.basename(settings_plist))
     o.add_option("-r", "--include-revoked", action="store_true", default=False,
@@ -439,8 +449,8 @@ save a product plist containing every Channel ID found for the product. Plist is
         help="Output verbosity. Can be specified either '-v' or '-vv'.")
     o.add_option("--no-colors", action="store_true", default=False,
         help="Disable colored ANSI output.")
-    o.add_option("--platform", type='choice', choices=['mac', 'win'], default='mac',
-        help="Available options are 'mac' or 'win'.")
+    o.add_option("--no-progressbar", action="store_true", default=False,
+        help="Disable the progress indicator.")
 
     opts, args = o.parse_args()
 
@@ -625,6 +635,10 @@ save a product plist containing every Channel ID found for the product. Plist is
                                 we_have_bytes, bytes))
                     if need_to_dl:
                         L.log(INFO, "Downloading %s %s (%s bytes) to %s" % (update.product, update.version, bytes, output_filename))
+                        
+                        if opts.no_progressbar:
+                            reporthook = None
+                        
                         urllib.urlretrieve(dmg_url, output_filename, reporthook)
                         
     L.log(INFO, "Done caching updates.")
