@@ -635,11 +635,10 @@ save a product plist containing every Channel ID found for the product. Plist is
                                 we_have_bytes, bytes))
                     if need_to_dl:
                         L.log(INFO, "Downloading %s %s (%s bytes) to %s" % (update.product, update.version, bytes, output_filename))
-                        
                         if opts.no_progressbar:
-                            reporthook = None
-                        
-                        urllib.urlretrieve(dmg_url, output_filename, reporthook)
+                            urllib.urlretrieve(dmg_url, output_filename)
+                        else:
+                            urllib.urlretrieve(dmg_url, output_filename, reporthook)
                         
     L.log(INFO, "Done caching updates.")
 
