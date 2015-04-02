@@ -18,6 +18,10 @@ You can also use this option multiple times to check multiple products at once.
 
 See the [`local_cache_path`](#config_local_cache_path) configuration option to override the default location these are stored.
 
+Use the `--platform win` option with the `--product-plist` option to fetch the latest Adobe updates for Windows products (as .zip files) using the these channels, defaults to "mac"
+
+Note: Munki isn't designed to understand Windows based Adobe updates so the `--platform win` option cannot be used with the --munkiimport option
+
 
 ### Importing into Munki
 
@@ -37,9 +41,11 @@ Some organizations can't use `munkiimport` and need to use `makepkginfo` instead
 
 ### Generating product plists
 
-The `--build-product-plist` option will generate a product plist automatically, using all Channel IDs found at the path of an Adobe ESD installer:
+The `--build-product-plist` option will generate a product plist automatically, using all Channel IDs found at the path of an Adobe ESD installer or a .ccp file from a (Mac or Windows) installer built using Creative Cloud Packager:
 
 `./aamporter.py --build-product-plist "/Volumes/CS6 DesWebPrm"`
+
+`./aamporter.py --build-product-plist "AdobeCCPhotoshopInstaller.ccp"`
 
 This will save a plist named after the location given, but you can name it anything you'd like. You may want to modify it to include only the updates you're interested in for the product. Most suites have roughly a dozen "base product" channels that will get updates for themselves and shared components like Dynamic Link Media Server and CSXS Infrastructure. For example, we could reduce this list down to something like:
 
