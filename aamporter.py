@@ -472,6 +472,8 @@ save a product plist containing every Channel ID found for the product. Plist is
         errorExit("--munki-update-for requires the --build-product-plist option!")
     if not opts.build_product_plist and not opts.product_plist:
         errorExit("One of --product-plist or --build-product-plist must be specified!")
+    if opts.platform == 'win' and opts.munkiimport:
+        errorExit("Cannot use the --munkiimport option with --platform win option!")
 
     if opts.build_product_plist:
         esd_path = opts.build_product_plist
