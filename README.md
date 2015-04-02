@@ -14,13 +14,13 @@ Now, run aamporter with the `--product-plist` option to fetch all the latest upd
 
 `./aamporter.py --product-plist SomeAdobeProduct.plist` (this plist can be named whatever you'd like)
 
-You can also use this option multiple times to check multiple products at once. 
+You can also use this option multiple times to check multiple products at once.
 
 See the [`local_cache_path`](#config_local_cache_path) configuration option to override the default location these are stored.
 
-Use the `--platform win` option with the `--product-plist` option to fetch the latest Adobe updates for Windows products (as .zip files) using the these channels, defaults to "mac"
+Use the `--platform win` option with the `--product-plist` option to fetch the latest Adobe updates for Windows products (as .zip files) using the these channels, defaults to "mac".
 
-Note: Munki isn't designed to understand Windows based Adobe updates so the `--platform win` option cannot be used with the --munkiimport option
+Note: Munki isn't designed to understand Windows based Adobe updates so the `--platform win` option cannot be used with the --munkiimport option.
 
 
 ### Importing into Munki
