@@ -68,6 +68,8 @@ for product_dirname in os.listdir(PKGS_DIR):
         "--nointeractive",
         ]
     cmd += MUNKIIMPORT_OPTIONS
-    cmd += ["--uninstallerpkg", uninstall_pkg_path]
+    cmd += ["--uninstallerpkg", uninstall_pkg_path,
+            "--minimum-munki-version", "2.1",
+            ]
     cmd.append(install_pkg_path)
     subprocess.call(cmd)
