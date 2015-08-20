@@ -44,6 +44,7 @@ INFO = 30
 VERBOSE = 20
 DEBUG = 10
 
+NONSSL_ADOBE_URL = False
 
 class ColorFormatter(logging.Formatter):
     # http://ascii-table.com/ansi-escape-sequences.php
@@ -91,7 +92,7 @@ def pref(name):
             errorExit(
                 "Settings plist found at %s, but it could not be parsed!"
                 % settings_plist)
-            
+
     if name in DEFAULT_PREFS.keys() and not name in p.keys():
         value = DEFAULT_PREFS[name]
     elif name in p.keys():
@@ -104,11 +105,15 @@ def pref(name):
 def getURL(type='updates'):
     if pref('aam_server_baseurl'):
         return pref('aam_server_baseurl')
-    else:
-        if type == 'updates':
-            return 'https://swupdl.adobe.com'
-        elif type == 'webfeed':
-            return 'https://swupmf.adobe.com'
+
+    urls = ('https://swupdl.adobe.com', 'https://swupmf.adobe.com')
+    if NONSSL_ADOBE_URL:
+        urls = ('http://swupdl.adobe.com', 'http://swupmf.adobe.com')
+
+    if type == 'updates':
+        return urls[0]
+    elif type == 'webfeed':
+        return urls[1]
 
 
 def getFeedData(platform):
@@ -567,6 +572,12 @@ save a product plist containing every Channel ID found for the product. Plist is
     for key in supported_settings_keys:
         L.log(DEBUG, " - {0}: {1}".format(key, pref(key)))
 
+    if (sys.version_info.minor, sys.version_info.micro) == (7, 10):
+        global NONSSL_ADOBE_URL
+        NONSSL_ADOBE_URL = True
+        L.log(VERBOSE, ("Python 2.7.10 detected, using HTTP feed URLs to work "
+                        "around SSL issues."))
+
     # pull feed info and populate channels
     L.log(INFO, "Retrieving feed data..")
     feed = getFeedData(opts.platform)
@@ -641,7 +652,7 @@ save a product plist containing every Channel ID found for the product. Plist is
                             urllib.urlretrieve(dmg_url, output_filename)
                         else:
                             urllib.urlretrieve(dmg_url, output_filename, reporthook)
-                        
+
     L.log(INFO, "Done caching updates.")
 
     # begin munkiimport run
