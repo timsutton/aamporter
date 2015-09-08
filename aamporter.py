@@ -381,9 +381,28 @@ def buildProductPlist(path, munki_update_for):
             xml = ET.parse(path)
         except ET.ParseError:
             errorExit("Couldn't parse XML .ccp file at %s" % path)
+
+        # XML Structure from which we extract Channel IDs:
+        # - PackageInfo
+        # - - PackageHistories
+        # - - - PackagingHistories
+        # - - - - InstallInfo
+        # - - - - - Medias
+        # - - - - - - Media
+        # - - - - - - - ProdChannelIDList
+        # - - - - - - Media
+        # - - - - - - - ProdChannelIDList
+        # - - - - - - [etc.]
         package_info = xml.getroot()
-        medias = package_info.find('PackageHistories/PackagingHistory/InstallInfo/Medias')
-        media_list = medias.findall('Media')
+
+        # there may be multiple PackageHistories elements if a package was created
+        # from a pre-existing package (<AAMEE_Workflow>MODIFY_EXISTING</AAMEE_Workflow>)
+        histories = package_info.findall('PackageHistories/PackagingHistory')
+        if not histories:
+            errorExit("Unexpected CCP file structure! (Expected 'PackagingHistory' elements")
+        media_list = []
+        for hist in histories:
+            media_list.extend(hist.findall('InstallInfo/Medias/Media'))
         for media in media_list:
             channel_id_list = media.find('ProdChannelIDList')
             if channel_id_list is not None:
