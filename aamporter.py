@@ -27,7 +27,7 @@ from xml.parsers.expat import ExpatError
 SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 DEFAULT_PREFS = {
     'munki_pkginfo_name_suffix': '_Update',
-    'munki_repo_destination_path': 'apps/Adobe/CS_Updates',
+    'munki_repo_destination_path': 'apps/Adobe/CC_Updates',
     'munkiimport_options': [],
     'local_cache_path': os.path.join(SCRIPT_DIR, 'aamcache'),
     'munki_tool': 'munkiimport'
