@@ -33,7 +33,8 @@ Note: Munki isn't designed to understand Windows based Adobe updates so the `--p
 
 Using the `--munkiimport` option will effectively run `munkiimport --nointeractive` on each downloaded update, automatically setting appropriate `name`, `display_name`, `description`, `update_for` keys, and additional options that can be specified in the `aamporter.plist` preference file. You may also override the destination pkg/pkginfo path per product plist using the `munki_repo_destination_path` key in a product plist (string value). This is useful if you like to group your CS updates by version along with your installers.
 
-If multiple plists are specified and any channels are shared between one or more products (ie. Photoshop, which is part of many suites), the update's pkginfo will have an update_for item for each product to which it applies.
+
+**Important**: If multiple plists are specified and any channels are shared between one or more products (ie. Photoshop, which is part of many suites), the update's pkginfo will have an `update_for` item for each product to which it applies. If it's expected that an update will apply to multiple base products (Camera Raw, for example), it's important to specify all relevant product plists in a single run.
 
 aamporter calls upon functionality in munkiimport that will detect whether you already have an item in your repo. The default behaviour of aamporter will skip the duplicate import, but this can be overridden with the `--force-import` option.
 
