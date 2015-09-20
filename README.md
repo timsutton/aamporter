@@ -2,7 +2,13 @@
 
 ## Overview
 
-aamporter is a command-line utility to retrieve the user-definable sets of updates for Adobe Creative Suite products and suites. It also automates the process of importing these into a [Munki](http://code.google.com/p/munki) repo. Later, the tool can be re-run to pull in new updates as they are released and you can begin testing.
+aamporter is a automation for automating the downloading of updates to Adobe Creative Cloud and Creative Suite applications, and optionally importing them into a [Munki](https://github.com/munki/munki) repo.
+
+The 'aam' in the name refers to Adobe Application Manager, the user-facing name for Adobe's installer and licensing subsystem for Creative Cloud/Suite products.
+
+The download functionality attempts to replicate the same logic used by the AAM system and the Creative Cloud Packager tools. The Munki-importing functionality is possible because Munki is the only Mac software application
+
+to retrieve the user-definable sets of updates for Adobe Creative Suite products and suites. It also automates the process of importing these into a [Munki](http://code.google.com/p/munki) repo. Later, the tool can be re-run to pull in new updates as they are released and you can begin testing.
 
 ## Usage
 
@@ -10,15 +16,15 @@ Build a 'product plist' with a list of channels you would like to check for upda
 
 If you plan to have updates imported into Munki, you should also set the `munki_update_for` key within the plist. This is either a string or array corresponding to the item(s) in Munki you would make these an `update_for` (in other words, the base product(s) you are putting in a Munki manifest).
 
-Now, run aamporter with the `--product-plist` option to fetch all the latest updates for these channels:
+Now, run aamporter with the plist path as an argument to fetch all the latest updates for these channels:
 
-`./aamporter.py --product-plist SomeAdobeProduct.plist` (this plist can be named whatever you'd like)
+`./aamporter.py SomeAdobeProduct.plist` (this plist can be named whatever you'd like)
 
-You can also use this option multiple times to check multiple products at once.
+You can specify as many plists as you like, to check multiple products at once.
 
 See the [`local_cache_path`](#config_local_cache_path) configuration option to override the default location these are stored.
 
-Use the `--platform win` option with the `--product-plist` option to fetch the latest Adobe updates for Windows products (as .zip files) using the these channels, defaults to "mac".
+Use the `--platform win` option to fetch the latest Adobe updates for Windows products (as .zip files) using the these channels. `--platform` defaults to `mac`.
 
 Note: Munki isn't designed to understand Windows based Adobe updates so the `--platform win` option cannot be used with the --munkiimport option.
 

@@ -436,14 +436,15 @@ def reporthook(blocknum, blocksize, totalsize):
 def main():
     usage = """
 
-%prog --product-plist path/to/plist [-p path/to/another] [--munkiimport] [options]
-%prog --build-product-plist path/to/Adobe/ESD/volume [--munki-update-for] BaseProductPkginfoName
+%prog [options] path/to/plist [path/to/more/plists..]
+%prog --build-product-plist [path/to/CCP/pkg/file.ccp] [--munki-update-for BaseProductPkginfoName]
 
-The first form will check and cache updates for the channels listed in the plist
-specified by the --product-plist option.
+The first form will check and cache updates for the channels listed in the product plists
+given as arguments.
 
-The second form will generate a product plist containing every channel ID available
-for the product whose ESD installer volume is mounted at the path.
+The second form will generate a product plist containing all channel IDs contained in the
+installer metadata. Accepts either a path to a .cpp file (from Creative Cloud Packager) or
+a mounted ESD volume path for CS6-and-earlier installers.
 
 See %prog --help for more options and the README for more detail."""
 
@@ -461,9 +462,9 @@ See %prog --help for more options and the README for more detail."""
         help="Run munkiimport even if it finds an identical pkginfo and installer_item_hash in the repo.")
     o.add_option("-c", "--make-catalogs", action="store_true", default=False,
         help="Automatically run makecatalogs after importing into Munki.")
-    o.add_option("-p", "--product-plist", "--plist", action="append",
-        help="Path to an Adobe product plist, for example as generated using the --build-product-plist option. \
-Can be specified multiple times.")
+    o.add_option("-p", "--product-plist", "--plist", action="append", default=[],
+        help="Deprecated option for specifying product plists, kept for compatibility. Instead, pass plist paths \
+as arguments.")
     o.add_option("-b", "--build-product-plist", action="store",
         help="Given a path to either a mounted Adobe product ESD installer or a .ccp file from a package built with CCP, \
 save a product plist containing every Channel ID found for the product. Plist is saved to the current working directory.")
@@ -492,6 +493,10 @@ save a product plist containing every Channel ID found for the product. Plist is
     if len(sys.argv) == 1:
         o.print_usage()
         sys.exit(0)
+
+    # any args we just pass through to the "legacy" --product-plist/--plist options
+    if args:
+        opts.product_plist.extend(args)
     if opts.munki_update_for and not opts.build_product_plist:
         errorExit("--munki-update-for requires the --build-product-plist option!")
     if not opts.build_product_plist and not opts.product_plist:
