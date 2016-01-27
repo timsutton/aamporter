@@ -639,7 +639,7 @@ save a product plist containing every Channel ID found for the product. Plist is
                     L.log(DEBUG, "No File XML element found. Skipping update.")
                 else:
                     filename = file_element.find('Name').text
-                    bytes = file_element.find('Size').text
+                    update_bytes = file_element.find('Size').text
                     description = update.xml.find('Description/en_US').text
                     display_name = update.xml.find('DisplayName/en_US').text
 
@@ -663,15 +663,15 @@ save a product plist containing every Channel ID found for the product. Plist is
                     need_to_dl = True
                     if os.path.exists(output_filename):
                         we_have_bytes = os.stat(output_filename).st_size
-                        if we_have_bytes == int(bytes):
+                        if we_have_bytes == int(update_bytes):
                             L.log(INFO, "Skipping download of %s %s, it is already cached." 
                                 % (update.product, update.version))
                             need_to_dl = False
                         else:
                             L.log(VERBOSE, "Incomplete download (%s bytes on disk, should be %s), re-starting." % (
-                                we_have_bytes, bytes))
+                                we_have_bytes, update_bytes))
                     if need_to_dl:
-                        L.log(INFO, "Downloading %s %s (%s bytes) to %s" % (update.product, update.version, bytes, output_filename))
+                        L.log(INFO, "Downloading %s %s (%s bytes) to %s" % (update.product, update.version, update_bytes, output_filename))
                         if opts.no_progressbar:
                             urllib.urlretrieve(dmg_url, output_filename)
                         else:
