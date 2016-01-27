@@ -163,6 +163,8 @@ def getChannelsFromProductPlists(products):
                 channels[channel]['munki_update_for'].append(product['munki_update_for'])
             if 'munki_repo_destination_path' in product.keys():
                 channels[channel]['munki_repo_destination_path'] = product['munki_repo_destination_path']
+            if 'makepkginfo_options' in product.keys():
+                channels[channel]['makepkginfo_options'] = product['makepkginfo_options']
     return channels
 
 
@@ -650,7 +652,9 @@ save a product plist containing every Channel ID found for the product. Plist is
                         updates[update.product][update.version]['channel_ids'] = []
                         updates[update.product][update.version]['update_for'] = []
                     updates[update.product][update.version]['channel_ids'].append(update.channel)
-                    for opt in ['munki_repo_destination_path', 'munki_update_for']:
+                    for opt in ['munki_repo_destination_path',
+                                'munki_update_for',
+                                'makepkginfo_options']:
                         if opt in channels[update.channel].keys():
                             updates[update.product][update.version][opt] = channels[update.channel][opt]
                     updates[update.product][update.version]['description'] = description
@@ -740,6 +744,13 @@ save a product plist containing every Channel ID found for the product. Plist is
                     if '--catalog' not in munkiimport_opts:
                         munkiimport_opts.append('--catalog')
                         munkiimport_opts.append('testing')
+
+                    if 'makepkginfo_options' in version_meta:
+                        L.log(VERBOSE,
+                            "Appending makepkginfo options: %s" %
+                            " ".join(version_meta['makepkginfo_options']))
+                        munkiimport_opts += version_meta['makepkginfo_options']
+
                     if pref('munki_tool') == 'munkiimport':
                         import_cmd = ['/usr/local/munki/munkiimport', '--nointeractive']
                     elif pref('munki_tool') == 'makepkginfo':
