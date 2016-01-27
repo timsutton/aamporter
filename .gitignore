@@ -1,3 +1,4 @@
 *.dmg
 *.pdf
 .DS_Store
+/.plist
