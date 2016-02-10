@@ -741,7 +741,7 @@ save a product plist containing every Channel ID found for the product. Plist is
                     munkiimport_opts.append(version_meta['display_name'])
                     munkiimport_opts.append('--description')
                     munkiimport_opts.append(version_meta['description'])
-                    if '--catalog' not in munkiimport_opts:
+                    if not any("--catalog" in s for s in munkiimport_opts)::
                         munkiimport_opts.append('--catalog')
                         munkiimport_opts.append('testing')
 
