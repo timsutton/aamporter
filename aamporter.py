@@ -735,12 +735,9 @@ save a product plist containing every Channel ID found for the product. Plist is
                         for base_product in update_catalogs:
                             munkiimport_opts.append('--update_for')
                             munkiimport_opts.append(base_product)
-                    munkiimport_opts.append('--name')
-                    munkiimport_opts.append(item_name)
-                    munkiimport_opts.append('--displayname')
-                    munkiimport_opts.append(version_meta['display_name'])
-                    munkiimport_opts.append('--description')
-                    munkiimport_opts.append(version_meta['description'])
+                    munkiimport_opts.extend(['--name', item_name,
+                                             '--displayname', version_meta['display_name'],
+                                             '--description', version_meta['description']])
 
                     if 'makepkginfo_options' in version_meta:
                         L.log(VERBOSE,
