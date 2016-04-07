@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>channels</key>
+	<array>
+		<string>AdobeAfterEffects-13.5.0-Trial</string>
+		<string>AdobeAfterEffectsCC2015LangPacken_US-13.5.0</string>
+		<string>AdobeAfterEffectsCC2015Presets-13.5.0</string>
+		<string>AdobeAfterEffectsCC2015Support-13.5.0</string>
+		<string>AdobeCharacterAnimatorPreview-1.0</string>
+		<string>AdobeColorCommonSetRGB-4.0</string>
+		<string>AdobeColorVideoProfilesAECS6-4.0</string>
+		<string>AdobeFontsRecommended-3.0</string>
+		<string>AdobeFontsRequired-3.0</string>
+		<string>AdobeMotionPictureColorFilesCC-5.0</string>
+		<string>CameraProfilesInstaller-8.0</string>
+		<string>PhotoshopCameraRaw8-8.0</string>
+	</array>
+  <key>munki_update_for</key>
+  <array>
+      <string>AdobeAfterEffects2015</string>
+  </array>
+  <key>munki_repo_destination_path</key>
+  <string>adobe/cc/2015/updates</string>
+</dict>
+</plist>

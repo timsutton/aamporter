@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>channels</key>
+	<array>
+		<string>AdobeColorCommonSetCMYK-5.0</string>
+		<string>AdobeColorCommonSetRGB-5.0</string>
+		<string>AdobeColorEUExtraSettingsCC-5.0</string>
+		<string>AdobeColorEURecommendedSettingsCC-5.0</string>
+		<string>AdobeColorJAExtraSettingsCC-5.0</string>
+		<string>AdobeColorJARecommendedSettingsCC-5.0</string>
+		<string>AdobeColorNAExtraSettingsCC-5.0</string>
+		<string>AdobeColorNARecommendedSettingsCC-5.0</string>
+		<string>AdobeDigitalPublishingCC2015-3.0</string>
+		<string>AdobeIDCC2015AppLangen_US-11.0</string>
+		<string>AdobeIDCC2015CBase-11.0</string>
+		<string>AdobeIDCC2015CLangen_US-11.0</string>
+		<string>AdobeInDesignCC2015-11.0</string>
+	</array>
+  <key>munki_update_for</key>
+  <array>
+      <string>AdobeInDesign2015</string>
+  </array>
+  <key>munki_repo_destination_path</key>
+  <string>adobe/cc/2015/updates</string>
+</dict>
+</plist>
