@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>channels</key>
+	<array>
+		<string>AdobeFontsRecommended-3.0</string>
+		<string>AdobeFontsRequired-3.0</string>
+		<string>AdobePremierePro-9.0.0-Trial</string>
+		<string>AdobePremiereProCC2015LangPacken_US-9.0.0</string>
+	</array>
+  <key>munki_update_for</key>
+  <array>
+      <string>AdobePremierePro2015</string>
+  </array>
+  <key>munki_repo_destination_path</key>
+  <string>adobe/cc/2015/updates</string>
+</dict>
+</plist>

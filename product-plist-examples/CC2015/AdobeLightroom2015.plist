@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>channels</key>
+	<array>
+		<string>AdobeLightroom-6.0</string>
+	</array>
+  <key>munki_update_for</key>
+  <array>
+      <string>AdobeLightroom2015</string>
+  </array>
+  <key>munki_repo_destination_path</key>
+  <string>adobe/cc/2015/updates</string>
+</dict>
+</plist>

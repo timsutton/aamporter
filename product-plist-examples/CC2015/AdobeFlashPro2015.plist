@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>channels</key>
+	<array>
+		<string>AIRForAPPLEIOSFlashPro15.0</string>
+		<string>AdobeColorCommonSetCMYK-5.0</string>
+		<string>AdobeColorCommonSetRGB-5.0</string>
+		<string>AdobeFlash-15.0.0</string>
+		<string>AdobeFlash-15.0.0en_US</string>
+		<string>CameraProfilesInstaller-8.0</string>
+		<string>PhotoshopCameraRaw8-8.0</string>
+	</array>
+  <key>munki_update_for</key>
+  <array>
+      <string>AdobeFlashPro2015</string>
+  </array>
+  <key>munki_repo_destination_path</key>
+  <string>adobe/cc/2015/updates</string>
+</dict>
+</plist>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>channels</key>
+	<array>
+		<string>AdobeAPE3.4_Mac_NoLocale</string>
+		<string>AdobeBridgeCC-6.0</string>
+		<string>AdobeMiniBridge3-3</string>
+		<string>AdobeSwitchBoard3-3</string>
+		<string>CameraProfilesInstaller-8.0</string>
+		<string>PhotoshopCameraRaw8-8.0</string>
+	</array>
+  <key>munki_update_for</key>
+  <array>
+      <string>AdobeBridge2015</string>
+  </array>
+  <key>munki_repo_destination_path</key>
+  <string>adobe/cc/2015/updates</string>
+</dict>
+</plist>
