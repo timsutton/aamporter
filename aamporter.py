@@ -547,6 +547,17 @@ save a product plist containing every Channel ID found for the product. Plist is
                 munkiimport.REPO_PATH = munkiimport.pref('repo_path')
             except ImportError:
                 errorExit("There was an error importing munkilib, which is needed for --munkiimport functionality.")
+
+            # rewrite some of munkiimport's function names since they were changed to
+            # snake case around 2.6.1:
+            # https://github.com/munki/munki/commit/e3948104e869a6a5eb6b440559f4c57144922e71
+            try:
+                munkiimport.repoAvailable()
+            except AttributeError:
+                munkiimport.repoAvailable = munkiimport.repo_available
+                munkiimport.makePkgInfo = munkiimport.make_pkginfo
+                munkiimport.findMatchingPkginfo = munkiimport.find_matching_pkginfo
+                munkiimport.makeCatalogs = munkiimport.make_catalogs
             if not munkiimport.repoAvailable():
                 errorExit("The Munki repo cannot be located. This tool is not interactive; first ensure the repo is mounted.")
 
@@ -668,7 +679,7 @@ save a product plist containing every Channel ID found for the product. Plist is
                     if os.path.exists(output_filename):
                         we_have_bytes = os.stat(output_filename).st_size
                         if we_have_bytes == int(update_bytes):
-                            L.log(INFO, "Skipping download of %s %s, it is already cached." 
+                            L.log(INFO, "Skipping download of %s %s, it is already cached."
                                 % (update.product, update.version))
                             need_to_dl = False
                         else:
