@@ -1,5 +1,9 @@
 # aamporter
 
+# Note
+
+Adobe's latest mid-June 2016 updates [described here](https://helpx.adobe.com/creative-cloud/packager/apps-deployed-without-their-base-versions.html) use a new installer technology, and these and future updates for these applications will not have their updates published using the update feed that aamporter understands. aamporter doesn't currently support these and future updates in this format.
+
 ## Overview
 
 aamporter is a automation for automating the downloading of updates to Adobe Creative Cloud and Creative Suite applications, and optionally importing them into a [Munki](https://github.com/munki/munki) repo.
