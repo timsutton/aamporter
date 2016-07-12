@@ -6,7 +6,7 @@ Adobe's latest mid-June 2016 updates [described here](https://helpx.adobe.com/cr
 
 ## Overview
 
-aamporter is a automation for automating the downloading of updates to Adobe Creative Cloud and Creative Suite applications, and optionally importing them into a [Munki](https://github.com/munki/munki) repo.
+aamporter is a tool for automating the downloading of updates to Adobe Creative Cloud and Creative Suite applications, and optionally importing them into a [Munki](https://github.com/munki/munki) repo.
 
 The 'aam' in the name refers to Adobe Application Manager, the user-facing name for Adobe's installer and licensing subsystem for Creative Cloud/Suite products.
 
