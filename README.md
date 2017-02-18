@@ -1,8 +1,8 @@
 # aamporter
 
-# Note
+# Important note
 
-Adobe's latest mid-June 2016 updates [described here](https://helpx.adobe.com/creative-cloud/packager/apps-deployed-without-their-base-versions.html) use a new installer technology, and these and future updates for these applications will not have their updates published using the update feed that aamporter understands. aamporter doesn't currently support these and future updates in this format.
+Adobe's mid-June 2016 product updates [described here](https://helpx.adobe.com/creative-cloud/packager/apps-deployed-without-their-base-versions.html), and all new releases for CC 2017, use a new installer technology (known internally as "HyperDrive"). These applications and their updates are not compatible with the updates feed or mechanisms that aamporter understands. aamporter is therefore only useful for doing updates for Adobe CS5-CS6 and CC versions up until the original 2015 releases. In February 2017 (this latest doc update), there are very few applications whose most recent version still uses this original format (Adobe Lightroom, for example).
 
 ## Overview
 
